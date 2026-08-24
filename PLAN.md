@@ -453,3 +453,74 @@ Five defects that only showed up in the pixels, all fixed:
 The browser dependency was temporary and has been removed; it can come back as a
 proper visual-regression script if that becomes worth keeping.
 
+---
+
+## 12. Marketing landing page
+
+A full SaaS landing page replacing the placeholder hero, referenced against
+[Asana](https://mobbin.com/screens/7ea162c4-eba1-4211-ac42-5830e4e669ef) (saturated
+full-bleed hero), [Vercel](https://mobbin.com/screens/23fd83a5-6f8c-40bd-a3fb-7d07fb2ce4d0)
+(grid lines and gradient bleed) and
+[Portrait](https://mobbin.com/screens/e8afaee3-f969-46db-99a1-cc4a90d9aa41) (tilted
+floating cards).
+
+Sections: hero → title marquee → the problem → features → product showcase →
+how it works → CTA → footer.
+
+### The 1920 canvas rule
+
+The design canvas is 1920px. Content caps there; section backgrounds are full-bleed.
+The rule that makes it work: **every `clamp()` reaches its maximum at or before
+1920px.** If a maximum engaged later, content would keep growing past the canvas on
+ultrawide and the design would quietly stop being the design.
+
+Measured against a real browser:
+
+| Viewport | Shell | Gutter | Content | Hero background | h1 |
+|---|---|---|---|---|---|
+| 390 | 390 | 20px | 350 | 390 | 44px |
+| 834 | 834 | 33px | 767 | 834 | 53px |
+| 1440 | 1440 | 58px | 1325 | 1440 | 92px |
+| **1920** | **1920** | **72px** | **1776** | **1920** | **120px** |
+| 2560 | 1920 | 72px | 1776 | **2560** | 120px |
+| 3440 | 1920 | 72px | 1776 | **3440** | 120px |
+
+Content and type freeze at the canvas; backgrounds keep bleeding. No horizontal
+overflow at any width from 360px to 3440px.
+
+### Typography
+
+`Instrument Serif` italic is loaded for one job only — the emphasised word in each
+headline ("*Zero* lost pages", "Reading *five* is a memory problem"). Using it for
+body copy would undo the point of having it.
+
+### GSAP
+
+Free tier only (3.15, ScrollTrigger included). Animations: hero line-mask rise,
+per-card parallax at independent depths with counter-rotation, an infinite title
+marquee, a book-spine fan that splays on entry and tilts on scrub, a self-drawing
+connector rule, and a 3D product mock that straightens from `rotateX(24deg)` as it
+reaches centre.
+
+**Two correctness decisions worth keeping:**
+
+1. Everything animates *from* a hidden state, never *to* one, and nothing is hidden
+   in CSS. If JavaScript fails, the page is simply visible.
+2. Every animation sits inside `gsap.matchMedia("(prefers-reduced-motion:
+   no-preference)")`. A visitor who asks for reduced motion gets the finished layout
+   with no movement — not a faster animation. Verified with a reduced-motion browser
+   context: **0 of 13 key elements stuck hidden.** This is the failure mode that
+   would otherwise render the page blank for those users.
+
+### Background images
+
+Three generated SVGs in `public/textures` — `noise.svg` (feTurbulence grain),
+`grid.svg`, `rings.svg` — totalling under 1KB and resolution-independent. These are
+generated, not sourced photography.
+
+### What is deliberately absent
+
+No customer logos, testimonials, user counts or ratings. The product has one real
+user, and inventing social proof would make the page dishonest. Those sections are
+easy to add once there is something true to put in them.
+

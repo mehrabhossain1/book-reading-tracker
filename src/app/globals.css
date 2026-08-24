@@ -10,6 +10,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  --font-serif: var(--font-display-serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -25,6 +26,12 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-success: var(--success);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-line: var(--ink-line);
+  --color-cream: var(--cream);
+  --color-cream-dim: var(--cream-dim);
+  --color-ember: var(--ember);
   --color-success-foreground: var(--success-foreground);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-input: var(--input);
@@ -101,6 +108,14 @@
   --chart-5: oklch(0.87 0.04 82);
 
   --radius: 0.75rem;
+
+  /* Marketing brand surfaces — intentionally theme-independent. */
+  --ink: oklch(0.185 0.016 52);
+  --ink-soft: oklch(0.255 0.019 52);
+  --ink-line: oklch(0.34 0.02 52);
+  --cream: oklch(0.968 0.011 85);
+  --cream-dim: oklch(0.79 0.014 78);
+  --ember: oklch(0.66 0.145 55);
 
   --sidebar: oklch(0.9715 0.0075 82);
   --sidebar-foreground: oklch(0.21 0.012 60);
@@ -200,4 +215,115 @@
 
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------------------------------------------------------------------------
+   Marketing layout system.
+
+   The design canvas is 1920px. Content is capped there and centred; section
+   backgrounds are full-bleed, so on an ultrawide display the colour and
+   texture run edge to edge while the reading column stays put.
+
+   Every clamp() below reaches its maximum at or before 1920px on purpose — if
+   a max engaged later, content would keep growing past the canvas on ultrawide
+   and the design would stop being the design.
+   --------------------------------------------------------------------------- */
+
+@utility shell {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1920px;
+  /* 4.5rem caps at 1800px viewport, so gutters are stable on ultrawide. */
+  padding-inline: clamp(1.25rem, 4vw, 4.5rem);
+}
+
+/* Reading measures — 1776px of usable width is far too wide for prose. */
+@utility measure {
+  max-width: 46ch;
+}
+@utility measure-wide {
+  max-width: 62ch;
+}
+
+@utility text-display {
+  /* caps at 1875px */
+  font-size: clamp(2.75rem, 6.4vw, 7.5rem);
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+}
+
+@utility text-headline {
+  /* caps at 1778px */
+  font-size: clamp(2rem, 3.6vw, 4rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+
+@utility text-title {
+  /* caps at 1867px */
+  font-size: clamp(1.25rem, 1.5vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+@utility text-lead {
+  /* caps at 1913px */
+  font-size: clamp(1.0625rem, 1.15vw, 1.375rem);
+  line-height: 1.55;
+}
+
+@utility section-y {
+  padding-block: clamp(4.5rem, 7vw, 9rem);
+}
+
+/* --- generated background textures (public/textures) --- */
+
+@utility bg-grain {
+  background-image: url("/textures/grid.svg");
+  background-repeat: repeat;
+}
+
+@utility texture-noise {
+  position: relative;
+  isolation: isolate;
+}
+@utility texture-noise-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("/textures/noise.svg");
+  background-repeat: repeat;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+@utility texture-grid-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("/textures/grid.svg");
+  background-repeat: repeat;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@utility texture-rings-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/textures/rings.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: clamp(48rem, 90vw, 78rem);
+  pointer-events: none;
+}
+
+/* GSAP sets its own initial states, so nothing is hidden before JS runs.
+   This only removes the transform-origin surprises on rotated cards. */
+@utility will-animate {
+  will-change: transform, opacity;
 }
