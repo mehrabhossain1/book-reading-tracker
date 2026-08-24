@@ -42,6 +42,12 @@ pnpm db:seed you@example.com   # the address you signed up with
 | `BETTER_AUTH_URL` | yes | `http://localhost:3000` in development |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | Google sign-in appears only when both are set |
 
+> **Deploying:** `BETTER_AUTH_URL` must be the deployed origin, not `localhost`.
+> Better Auth trusts only that origin, so a production deployment still pointing
+> at localhost fails every sign-in with **"Invalid origin"**. Vercel's own
+> `VERCEL_PROJECT_PRODUCTION_URL` and `VERCEL_URL` are added automatically in
+> `src/lib/auth.ts`, which covers preview deployments.
+
 Values are validated in `src/lib/env.ts` at build time — a missing variable fails
 `next build` rather than the first request.
 
@@ -60,6 +66,7 @@ Values are validated in `src/lib/env.ts` at build time — a missing variable fa
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm db:seed <email>` | Sample books and sessions for an existing account |
 | `pnpm auth:generate` | Regenerate the Better Auth tables (see note below) |
+| `pnpm admin:promote <email> [role]` | Grant `user`, `admin` or `superadmin` |
 
 ## Layout
 
@@ -93,3 +100,34 @@ src/
 `@better-auth/cli` currently publishes 1.4.x while the library is on 1.7.x, and its
 output omits `account.issuer`, which 1.7 requires. If you regenerate
 `src/db/schema/auth.ts`, re-add that column — the file carries a comment marking it.
+
+## Back office
+
+`/admin` is staff-only, linked in the sidebar for staff and hidden otherwise.
+
+| Role | Can |
+|---|---|
+| `user` | Nothing administrative |
+| `admin` | View metrics and accounts, ban/unban, revoke sessions, impersonate a **member** |
+| `superadmin` | All of the above, plus change roles, delete accounts, and act on other admins |
+
+The first super admin has to be created from the command line — the back office
+is staff-only, so there is no way to bootstrap one from inside it:
+
+```bash
+pnpm admin:promote you@example.com superadmin
+```
+
+Everything after that can be done from `/admin`.
+
+**Two rules enforced in `modules/admin/actions.ts`, not just hidden in the UI:**
+
+- Only a super admin may change roles or delete an account.
+- Staff may not ban, unban or revoke sessions of other staff — only a super
+  admin may. Better Auth gates *impersonating* an admin behind its own
+  permission but has no equivalent for banning, so without this a plain admin
+  could ban the owner and lock them out.
+
+Impersonation is deliberately conspicuous: the session records `impersonatedBy`,
+sessions last 30 minutes, and a red banner sits above the app until you stop.
+

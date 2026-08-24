@@ -5,7 +5,9 @@ import { Brand } from "@/components/layout/brand";
 import { BottomNav, RailNav, SidebarNav } from "@/components/layout/sidebar-nav";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
-import { requireUser } from "@/lib/session";
+import { getSession, requireUser } from "@/lib/session";
+import { isStaff as isStaffRole } from "@/modules/admin/permissions";
+import { ImpersonationBanner } from "@/modules/admin/components/impersonation-banner";
 
 /**
  * Three-tier shell:
@@ -17,14 +19,19 @@ import { requireUser } from "@/lib/session";
  */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  const session = await getSession();
+  const isStaff = isStaffRole(user.role);
+  const impersonating = Boolean(session?.session.impersonatedBy);
 
   return (
-    <div className="flex min-h-dvh flex-1">
+    <div className="flex min-h-dvh flex-1 flex-col">
+      {impersonating && <ImpersonationBanner name={user.name} />}
+      <div className="flex flex-1">
       {/* Tablet: icon rail */}
       <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-dvh w-16 shrink-0 flex-col items-center border-r py-4 md:flex xl:hidden">
         <Brand showWordmark={false} />
         <div className="mt-6">
-          <RailNav />
+          <RailNav isStaff={isStaff} />
         </div>
         <Button
           asChild
@@ -45,7 +52,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r px-3 py-4 xl:flex">
         <Brand className="px-2" />
         <div className="mt-6">
-          <SidebarNav />
+          <SidebarNav isStaff={isStaff} />
         </div>
         <Button asChild className="mt-4 justify-start gap-2" size="lg">
           <Link href="/books/new">
@@ -77,7 +84,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </main>
       </div>
 
-      <BottomNav />
+        <BottomNav isStaff={isStaff} />
+      </div>
     </div>
   );
 }

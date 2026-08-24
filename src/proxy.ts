@@ -9,7 +9,7 @@ import { getSessionCookie } from "better-auth/cookies";
  * Real enforcement is `requireUser()` in layouts/pages and `authedAction`
  * in every mutation.
  */
-const APP_ROUTES = ["/library", "/books", "/stats", "/settings"];
+const APP_ROUTES = ["/library", "/books", "/stats", "/settings", "/admin"];
 const AUTH_ROUTES = ["/sign-in", "/sign-up"];
 
 export function proxy(request: NextRequest) {
@@ -30,5 +30,13 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/library/:path*", "/books/:path*", "/stats/:path*", "/settings/:path*", "/sign-in", "/sign-up"],
+  matcher: [
+    "/library/:path*",
+    "/books/:path*",
+    "/stats/:path*",
+    "/settings/:path*",
+    "/admin/:path*",
+    "/sign-in",
+    "/sign-up",
+  ],
 };

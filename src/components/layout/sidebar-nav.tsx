@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { NAV_ITEMS } from "@/components/layout/nav";
+import { navItemsFor } from "@/components/layout/nav";
 import { cn } from "@/lib/utils";
 
 function useIsActive() {
@@ -15,12 +15,13 @@ function useIsActive() {
 }
 
 /** Full sidebar with labels — desktop (xl and up). */
-export function SidebarNav() {
+export function SidebarNav({ isStaff = false }: { isStaff?: boolean }) {
   const isActive = useIsActive();
+  const items = navItemsFor(isStaff);
 
   return (
     <nav className="flex flex-col gap-1" aria-label="Main">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);
         return (
           <Link
@@ -51,12 +52,13 @@ export function SidebarNav() {
  * 768–1024px viewport; the rail keeps navigation one tap away without
  * squeezing the content column.
  */
-export function RailNav() {
+export function RailNav({ isStaff = false }: { isStaff?: boolean }) {
   const isActive = useIsActive();
+  const items = navItemsFor(isStaff);
 
   return (
     <nav className="flex flex-col items-center gap-1.5" aria-label="Main">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);
         return (
           <Link
@@ -81,15 +83,17 @@ export function RailNav() {
 }
 
 /** Bottom tab bar — mobile only, with iOS home-indicator inset respected. */
-export function BottomNav() {
+export function BottomNav({ isStaff = false }: { isStaff?: boolean }) {
   const isActive = useIsActive();
+  const items = navItemsFor(isStaff);
 
   return (
     <nav
       aria-label="Main"
-      className="bg-background/90 border-border safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t backdrop-blur-md md:hidden"
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      className="bg-background/90 border-border safe-bottom fixed inset-x-0 bottom-0 z-40 grid border-t backdrop-blur-md md:hidden"
     >
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);
         return (
           <Link

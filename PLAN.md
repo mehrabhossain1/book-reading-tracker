@@ -524,3 +524,60 @@ No customer logos, testimonials, user counts or ratings. The product has one rea
 user, and inventing social proof would make the page dishonest. Those sections are
 easy to add once there is something true to put in them.
 
+---
+
+## 13. Super admin (back office)
+
+Built on Better Auth's official **admin plugin** rather than a hand-rolled role
+column — it brings ban/unban, session revocation, impersonation with an audit
+trail, and an access-control system, and it revokes a banned user's live
+sessions instead of leaving them signed in until the cookie expires.
+
+### Roles
+
+| Role | Can |
+|---|---|
+| `user` | Nothing administrative |
+| `admin` | Metrics, account list, ban/unban, revoke sessions, impersonate a member |
+| `superadmin` | The above, plus change roles, delete accounts, act on other admins |
+
+The tier split is real, not cosmetic: Better Auth's built-in `admin` role
+deliberately omits `impersonate-admins`, and we add a `platform:manage-admins`
+statement on top. Unit tests assert both — if they ever pass trivially, "super
+admin" has stopped meaning anything.
+
+### Bootstrapping
+
+`pnpm admin:promote <email> [role]` writes the role directly. This exists
+because the back office is staff-only: there is no way to create the first
+super admin from inside a UI only staff can reach.
+
+### Two defects found by testing, not by reading
+
+1. **A plain admin could ban the super admin.** Better Auth gates impersonating
+   an admin behind a permission, but has no equivalent for banning or revoking
+   sessions — so an admin could have locked the owner out of their own platform.
+   Found by invoking the server actions directly rather than clicking the UI,
+   which merely *hides* those controls. Fixed with `assertCanActOn`, and
+   re-verified: all five admin actions now refuse when a plain admin targets a
+   super admin.
+
+2. **Two SQL bugs in the account list**, both caught by the page 500-ing:
+   correlated subqueries rendered the outer column unqualified, so Postgres
+   bound `"id"` to `book.id` and failed with `operator does not exist: text =
+   uuid`; and `max(read_at)` came back from the raw aggregate as a string,
+   throwing `getTime is not a function`. Rewritten with pre-aggregated joins
+   (which also avoids the fan-out that would have inflated page totals) and an
+   explicit `new Date()` revival.
+
+The first verification run reported "super admin can open /admin" as a **PASS**
+while the page was in fact returning a server error — the assertion only checked
+the URL path. Assertions now fail if Next's error boundary rendered.
+
+### Verified end to end
+
+Member redirected from `/admin` and shown no nav link · super admin sees both ·
+account list renders with per-user book and page counts · role change persists ·
+ban shows in the list *and* blocks sign-in · unban clears it · impersonation
+shows the banner and the member's library · stopping it restores the admin.
+
