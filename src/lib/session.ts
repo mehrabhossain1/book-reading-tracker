@@ -1,0 +1,29 @@
+import "server-only";
+
+import { cache } from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
+import { auth, type AuthUser } from "@/lib/auth";
+
+/**
+ * `cache` dedupes this across a single render pass, so a layout and the page
+ * inside it don't each hit the session store.
+ */
+export const getSession = cache(async () => {
+  return auth.api.getSession({ headers: await headers() });
+});
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  return (await getSession())?.user ?? null;
+}
+
+/**
+ * The real guard. `proxy.ts` only does an optimistic cookie check for UX —
+ * anything that reads or writes data calls this instead.
+ */
+export async function requireUser(): Promise<AuthUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/sign-in");
+  return user;
+}
