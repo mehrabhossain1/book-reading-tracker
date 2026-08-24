@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { RiCloseLine, RiSparkling2Fill } from "react-icons/ri";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,8 @@ import {
 import { BOOK_STATUSES, type BookStatus } from "@/db/schema";
 import { createBook, updateBook } from "@/modules/books/actions";
 import { BOOK_STATUS_META, STATUS_ORDER } from "@/modules/books/status";
+import { TitleCombobox } from "@/modules/catalogue/components/title-combobox";
+import type { EditionSuggestion } from "@/modules/catalogue/queries";
 
 /** Form-side twin of createBookSchema — real numbers, no coercion. */
 const bookFormSchema = z.object({
@@ -35,6 +39,8 @@ const bookFormSchema = z.object({
     .max(2048)
     .refine((v) => !v || /^https?:\/\//i.test(v), "Must start with http:// or https://"),
   status: z.enum(BOOK_STATUSES),
+  /** Present when the title came from the shared catalogue. */
+  editionId: z.string().optional(),
 });
 
 type BookFormValues = z.infer<typeof bookFormSchema>;
@@ -62,15 +68,33 @@ export function BookForm({
       totalPages: book?.totalPages ?? Number.NaN,
       coverUrl: book?.coverUrl ?? "",
       status: book?.status ?? "reading",
+      editionId: undefined,
     },
   });
 
   const status = useWatch({ control: form.control, name: "status" });
+  const title = useWatch({ control: form.control, name: "title" });
+  const [linked, setLinked] = useState<EditionSuggestion | null>(null);
+
+  /** Reuse an existing catalogue entry instead of creating a near-duplicate. */
+  const applySuggestion = (edition: EditionSuggestion) => {
+    form.setValue("title", edition.title, { shouldValidate: true });
+    form.setValue("author", edition.author ?? "");
+    form.setValue("totalPages", edition.totalPages, { shouldValidate: true });
+    form.setValue("coverUrl", edition.coverUrl ?? "");
+    form.setValue("editionId", edition.id);
+    setLinked(edition);
+  };
+
+  const unlink = () => {
+    form.setValue("editionId", undefined);
+    setLinked(null);
+  };
 
   const onSubmit = form.handleSubmit(async (values) => {
     const result = isEdit
       ? await updateBook({ ...values, bookId: book!.id })
-      : await createBook(values);
+      : await createBook({ ...values, editionId: values.editionId || undefined });
 
     if (!result.ok) {
       if (result.fieldErrors) {
@@ -92,12 +116,48 @@ export function BookForm({
       <FieldGroup>
         <Field data-invalid={Boolean(form.formState.errors.title)}>
           <FieldLabel htmlFor="title">Title</FieldLabel>
-          <Input
-            id="title"
-            autoFocus
-            aria-invalid={Boolean(form.formState.errors.title)}
-            {...form.register("title")}
-          />
+          {isEdit ? (
+            <Input
+              id="title"
+              autoFocus
+              aria-invalid={Boolean(form.formState.errors.title)}
+              {...form.register("title")}
+            />
+          ) : (
+            <TitleCombobox
+              value={title ?? ""}
+              onChange={(next) => {
+                form.setValue("title", next, { shouldValidate: true });
+                // Typing over a linked title means they want a different book.
+                if (linked && next !== linked.title) unlink();
+              }}
+              onSelect={applySuggestion}
+              invalid={Boolean(form.formState.errors.title)}
+            />
+          )}
+          {!isEdit && !linked && (
+            <FieldDescription>
+              Start typing — if someone has already added this book, pick it and the
+              details fill themselves in.
+            </FieldDescription>
+          )}
+          {linked && (
+            <div className="border-primary/30 bg-primary/8 mt-1 flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs">
+              <RiSparkling2Fill className="text-primary size-3.5 shrink-0" aria-hidden />
+              <span className="text-foreground min-w-0 flex-1 truncate">
+                Using the catalogue entry
+                {linked.usageCount > 1 && ` · ${linked.usageCount} readers`}
+              </span>
+              <button
+                type="button"
+                onClick={unlink}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              >
+                <RiCloseLine className="size-3.5" aria-hidden />
+                Detach
+              </button>
+            </div>
+          )}
           <FieldError errors={[form.formState.errors.title]} />
         </Field>
 

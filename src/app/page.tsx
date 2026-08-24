@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { getCurrentUser } from "@/lib/session";
+import { Catalogue } from "@/modules/marketing/components/catalogue";
 import { Cta } from "@/modules/marketing/components/cta";
 import { Features } from "@/modules/marketing/components/features";
 import { Hero } from "@/modules/marketing/components/hero";
@@ -30,6 +31,7 @@ export default async function HomePage() {
         <Marquee />
         <Problem />
         <Features />
+        <Catalogue />
         <Showcase />
         <HowItWorks />
         <Cta />

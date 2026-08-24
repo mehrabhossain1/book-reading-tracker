@@ -65,6 +65,7 @@ Values are validated in `src/lib/env.ts` at build time — a missing variable fa
 | `pnpm db:push` | Push schema straight to the DB (development only) |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm db:seed <email>` | Sample books and sessions for an existing account |
+| `pnpm db:backfill-catalogue` | Link existing shelf books to catalogue entries (idempotent) |
 | `pnpm auth:generate` | Regenerate the Better Auth tables (see note below) |
 | `pnpm admin:promote <email> [role]` | Grant `user`, `admin` or `superadmin` |
 
@@ -100,6 +101,35 @@ src/
 `@better-auth/cli` currently publishes 1.4.x while the library is on 1.7.x, and its
 output omits `account.issuer`, which 1.7 requires. If you regenerate
 `src/db/schema/auth.ts`, re-add that column — the file carries a comment marking it.
+
+## Shared book catalogue
+
+Every book anyone adds joins `book_edition`, a shared catalogue. When the next
+person types a title, matches are suggested so nobody retypes a book that
+already exists.
+
+- **Search** is `pg_trgm` trigram matching over a GIN index, so `powr brokr`
+  finds *The Power Broker*. `ILIKE %term%` catches substrings and the `%`
+  operator catches typos; both are served by the same index.
+- **Identity** is `(normalized_title, normalized_author)` with a unique index.
+  `normalizeTitle` lowercases, strips punctuation and ignores a leading article,
+  so "The Hobbit" and "hobbit" collide. It keeps Unicode **marks** (`\p{M}`),
+  without which Bengali vowel signs are stripped and titles are destroyed.
+- **The shelf keeps its own copy** of title/author/totalPages. Two readers can
+  own different editions with different page counts, and a shared page count
+  would corrupt their progress maths. `book.editionId` is a nullable link, set
+  null on delete — losing a catalogue row must never take reading history with it.
+- **`usage_count`** (the ranking key) is maintained by a database trigger, not
+  application code. Deleting a *user* cascades to their books without running any
+  application path, so an app-maintained counter drifts upward forever.
+
+The suggestion box (`modules/catalogue/components/title-combobox.tsx`) debounces
+the query by 250 ms, aborts in-flight requests, and derives both the visible
+results and the loading flag from state rather than clearing them in an effect —
+so results from an earlier query can never linger under a newer one.
+
+Run `pnpm db:backfill-catalogue` once after deploying to seed the catalogue from
+books that already exist.
 
 ## Back office
 

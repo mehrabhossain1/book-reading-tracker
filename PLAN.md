@@ -581,3 +581,96 @@ account list renders with per-user book and page counts · role change persists 
 ban shows in the list *and* blocks sign-in · unban clears it · impersonation
 shows the banner and the member's library · stopping it restores the admin.
 
+---
+
+# Version 2
+
+V1 answered "what page am I on in each book?". V2 widens that from one shelf to a
+platform: a shared catalogue so nobody retypes a book someone has already added,
+a staff back office, and a marketing front door.
+
+| Shipped in v2 | Section |
+|---|---|
+| Warm paper theme, three-tier responsive layout | §11 |
+| SaaS landing page with GSAP | §12 |
+| Super admin back office | §13 |
+| **Shared book catalogue** | §14 |
+
+## 14. Shared book catalogue
+
+**Goal:** every book anyone adds is stored once and offered as a suggestion to
+the next person, so the same title isn't retyped by every reader.
+
+### The modelling decision
+
+The obvious move — normalise `book` so everyone points at one shared row — is
+wrong here. Two readers legitimately hold different editions of the same work
+with different page counts, and progress is calculated against `totalPages`. A
+shared page count would silently corrupt one of them.
+
+So the split is:
+
+| | Owns | Shared? |
+|---|---|---|
+| `book_edition` | title, author, page count, cover, usage count | yes — the catalogue |
+| `book` | the same fields *plus* current page, status, dates | no — one row per reader |
+
+`book.editionId` links them, nullable and `ON DELETE SET NULL`: losing a
+catalogue row must never take someone's reading history with it, and the
+denormalised fields keep a shelf readable on its own.
+
+### Identity and search
+
+Identity is `(normalized_title, normalized_author)` behind a unique index.
+`normalizeTitle` lowercases, treats punctuation as a separator and drops a
+leading article, so "The Hobbit" and "hobbit" collide.
+
+`normalized_author` is `NOT NULL DEFAULT ''`, not nullable — in Postgres
+`NULL != NULL`, so a nullable column would let duplicate authorless titles slip
+straight past the unique index.
+
+Search is `pg_trgm` over a GIN index: `ILIKE %term%` for substrings OR the `%`
+operator for typos, both served by the same index (`gin_trgm_ops` accelerates
+leading-wildcard LIKE, which btree cannot). Ranking uses `word_similarity`
+rather than `similarity`, because plain similarity is length-normalised and so
+scores a short query against a long title badly — exactly the autocomplete case.
+
+### Three bugs worth recording
+
+1. **Unicode marks.** The first normaliser kept `\p{L}` and `\p{N}` and threw
+   everything else away. Bengali vowel signs (া ী ে) and the hasant are Unicode
+   **Marks**, not Letters, so `তাওহীদ` was shredded into `ত ওহ দ` — every
+   Bengali title would have been silently mangled in the catalogue. Caught by a
+   unit test written against the real titles already in the database. Fixed by
+   keeping `\p{M}`.
+
+2. **A counter the application could not keep honest.** `usage_count` was
+   maintained in the create/update/delete actions. But deleting a *user*
+   cascades to their books at the database level and runs no application code,
+   so the counter drifted upward forever. Moved to a `book_edition_usage_sync`
+   trigger, which closes the hole for every path — cascades, bulk SQL, admin
+   deletes, future backfills. Verified by deleting an account and watching a
+   count go 2 → 0.
+
+3. **The same SQL footgun, twice.** Drizzle renders the outer column unqualified
+   inside a correlated subquery, so `"id"` binds to the inner table. It broke the
+   admin account list in v2 §13, and then broke a *verification script* here —
+   reporting drift on all seven editions when there was none. Pre-aggregated
+   joins everywhere now.
+
+### Verified end to end
+
+Reader A adds a book · reader B types the title and gets it suggested · **nine
+keystrokes produce one request** (250 ms debounce + abort) · picking a
+suggestion fills author and page count · the shelf links to the catalogue entry ·
+`wagr` still finds *The Wager* · a Bengali query matches a Bengali title ·
+usage counts match reality with zero drift, before and after a cascading account
+deletion.
+
+### Still deliberately absent
+
+External metadata (Open Library / Google Books) as a suggestion source. The
+catalogue is built from what readers actually add. The combobox is the seam: an
+external provider drops in behind the same component and the same `editionId`
+link, without changing the schema.
+

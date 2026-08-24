@@ -2,7 +2,7 @@ import {
   RiBarChartBoxFill,
   RiBookmark3Fill,
   RiHistoryFill,
-  RiMoonClearFill,
+  RiSearch2Fill,
   RiShieldCheckFill,
   RiStackFill,
 } from "react-icons/ri";
@@ -31,9 +31,9 @@ const FEATURES = [
     body: "Pages this week, your current streak and books finished this year — computed from the log, not self-reported.",
   },
   {
-    icon: RiMoonClearFill,
-    title: "Light and dark",
-    body: "A warm paper palette by day and a low-glare dark theme at night, both checked against WCAG AA contrast.",
+    icon: RiSearch2Fill,
+    title: "A catalogue that builds itself",
+    body: "Every book anyone adds becomes a suggestion for the next reader. Type three letters instead of three fields.",
   },
   {
     icon: RiShieldCheckFill,

@@ -14,6 +14,8 @@ const optionalText = (max: number) =>
 export const bookStatusSchema = z.enum(BOOK_STATUSES);
 
 export const createBookSchema = z.object({
+  /** Set when the reader picked an existing catalogue entry from suggestions. */
+  editionId: z.uuid().optional(),
   title: z.string().trim().min(1, "A title is required.").max(300),
   author: optionalText(200),
   totalPages: z.coerce

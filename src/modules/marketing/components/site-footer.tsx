@@ -21,6 +21,9 @@ export function SiteFooter() {
           <a href="#features" className="text-cream-dim hover:text-cream text-sm transition-colors">
             Features
           </a>
+          <a href="#catalogue" className="text-cream-dim hover:text-cream text-sm transition-colors">
+            Catalogue
+          </a>
           <a href="#how" className="text-cream-dim hover:text-cream text-sm transition-colors">
             How it works
           </a>

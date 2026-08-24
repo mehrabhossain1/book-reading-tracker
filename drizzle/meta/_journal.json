@@ -15,6 +15,20 @@
       "when": 1787593398664,
       "tag": "0001_kind_slapstick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787594682915,
+      "tag": "0002_late_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787595179022,
+      "tag": "0003_book_edition_usage_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -24,6 +25,60 @@ export const BOOK_STATUSES = bookStatusEnum.enumValues;
 export type BookStatus = (typeof BOOK_STATUSES)[number];
 
 /**
+ * The shared catalogue: one row per distinct work, contributed by whoever adds
+ * it first and reused by everyone after.
+ *
+ * This is deliberately NOT the source of truth for a person's progress. A
+ * reader's own `book` row keeps its own title/author/totalPages, because two
+ * people can hold different editions of the same work with different page
+ * counts — forcing a shared page count would corrupt their progress maths. The
+ * catalogue exists to stop people retyping a book that already exists, and it
+ * links back via `book.editionId`.
+ */
+export const bookEdition = pgTable(
+  "book_edition",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    title: text("title").notNull(),
+    author: text("author"),
+    coverUrl: text("cover_url"),
+    totalPages: integer("total_pages").notNull(),
+
+    /**
+     * Identity keys, written by normalizeTitle/normalizeAuthor. The author key
+     * is NOT NULL with a "" default on purpose: in Postgres NULL != NULL, so a
+     * nullable column would let duplicate authorless titles slip past the
+     * unique index.
+     */
+    normalizedTitle: text("normalized_title").notNull(),
+    normalizedAuthor: text("normalized_author").notNull().default(""),
+
+    /** Who first contributed it. Kept for credit; nulled if they leave. */
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    /** How many shelves it is on — drives suggestion ranking. */
+    usageCount: integer("usage_count").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("book_edition_identity_idx").on(t.normalizedTitle, t.normalizedAuthor),
+    // Trigram index for typo-tolerant suggestions; see the pg_trgm extension
+    // created in the accompanying migration.
+    index("book_edition_title_trgm_idx").using(
+      "gin",
+      sql`${t.normalizedTitle} gin_trgm_ops`,
+    ),
+    index("book_edition_usage_idx").on(t.usageCount.desc()),
+    check("book_edition_total_pages_positive", sql`${t.totalPages} > 0`),
+  ],
+);
+
+/**
  * A book on one person's shelf.
  *
  * `currentPage` is denormalised on purpose: the library screen has to render a
@@ -38,6 +93,15 @@ export const book = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+
+    /**
+     * Which catalogue entry this came from. Nullable and ON DELETE SET NULL:
+     * losing the catalogue row must never take someone's reading history with
+     * it, and the denormalised fields below keep the shelf readable on its own.
+     */
+    editionId: uuid("edition_id").references(() => bookEdition.id, {
+      onDelete: "set null",
+    }),
 
     title: text("title").notNull(),
     author: text("author"),
@@ -63,6 +127,7 @@ export const book = pgTable(
   (t) => [
     // Every list view is "this user's books, filtered by status".
     index("book_user_status_idx").on(t.userId, t.status),
+    index("book_edition_idx").on(t.editionId),
     index("book_user_last_read_idx").on(t.userId, t.lastReadAt.desc()),
     check("book_total_pages_positive", sql`${t.totalPages} > 0`),
     check(
@@ -112,8 +177,14 @@ export const readingSession = pgTable(
   ],
 );
 
+export const bookEditionRelations = relations(bookEdition, ({ one, many }) => ({
+  contributor: one(user, { fields: [bookEdition.createdBy], references: [user.id] }),
+  copies: many(book),
+}));
+
 export const bookRelations = relations(book, ({ one, many }) => ({
   owner: one(user, { fields: [book.userId], references: [user.id] }),
+  edition: one(bookEdition, { fields: [book.editionId], references: [bookEdition.id] }),
   sessions: many(readingSession),
 }));
 
@@ -122,6 +193,8 @@ export const readingSessionRelations = relations(readingSession, ({ one }) => ({
   owner: one(user, { fields: [readingSession.userId], references: [user.id] }),
 }));
 
+export type BookEdition = typeof bookEdition.$inferSelect;
+export type NewBookEdition = typeof bookEdition.$inferInsert;
 export type Book = typeof book.$inferSelect;
 export type NewBook = typeof book.$inferInsert;
 export type ReadingSession = typeof readingSession.$inferSelect;

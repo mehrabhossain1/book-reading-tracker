@@ -10,6 +10,7 @@ import { MOTION_OK, ScrollTrigger, gsap, useGSAP } from "@/modules/marketing/gsa
 const LINKS = [
   { href: "#problem", label: "The problem" },
   { href: "#features", label: "Features" },
+  { href: "#catalogue", label: "Catalogue" },
   { href: "#how", label: "How it works" },
 ];
 
