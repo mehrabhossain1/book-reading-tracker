@@ -279,9 +279,7 @@ GOOGLE_CLIENT_SECRET=    # optional
 | 12 | Settings, dark mode, mobile pass, Vitest on domain math | tests green |
 | 13 | `README.md` + seed script | fresh clone runs in one command |
 
-**Status:** steps 1–3 and 5–13 are built. `pnpm typecheck`, `pnpm lint`, `pnpm build`
-and 22 Vitest cases all pass. Step 4 and the migration half of steps 2/5 are written
-but unverified against a live database — see §9.
+**Status: all 13 steps complete and verified against the live database — see §9.**
 
 ---
 
@@ -312,16 +310,45 @@ None of these are built in v1 — each is a place where v1 *doesn't* block v2.
 | OAuth in v1 | **Email + password only.** The Google provider block ships commented out in `lib/auth.ts`; enabling it later is pasting two env vars and uncommenting |
 | Package manager | **pnpm** |
 
-Still needed: the `DATABASE_URL` connection string from Neon.
+## 9. Verification record
 
-## 9. Verified vs. not
+Run against the live Neon database on 2026-08-24. All of it passed; the test
+account and its data were deleted afterwards (the cascade was confirmed — removing
+the user took its books and sessions with it).
 
-**Verified:** typecheck, lint, production build, 22 unit tests over the progress and
-streak math, and the generated migration SQL (all CHECK constraints and indexes
-present in `drizzle/0000_skinny_maximus.sql`).
+**Static:** `pnpm typecheck`, `pnpm lint`, `pnpm build`, 22 Vitest cases.
 
-**Not yet verified — needs the database:** applying the migration, sign-up/sign-in
-against real tables, and the log-progress transaction end to end.
+**Schema:** migration applied; 6 tables, all 5 CHECK constraints present.
+`db.transaction()` confirmed working over Neon's pooled WebSocket driver — this was
+the main architectural risk, since the HTTP driver cannot open a transaction and the
+progress write depends on one.
+
+**Auth:** real sign-up over `/api/auth/sign-up/email` → user + account + session rows
+written, cookie issued, `get-session` round-trips. `/library` `/books/new` `/stats`
+`/settings` all render 200 with a session; a signed-out request to `/library` gets
+307 → `/sign-in?next=%2Flibrary`; a signed-in request to `/` gets 307 → `/library`.
+
+**The parallel-reading scenario** (three books, sessions interleaved):
+
+| Book | Sittings | Bookmark | Resume at |
+|---|---|---|---|
+| The Power Broker | 1–40, then 41–97 | 97 / 1246 (8%) | p. 98 |
+| Thinking, Fast and Slow | 1–88 | 88 / 499 (18%) | p. 89 |
+| Pride and Prejudice | 1–52, re-read 10–20, 53–279 | finished | — |
+
+Each book kept its own independent bookmark. The library rendered
+`p. 97 of 1246 · 1149 pages left` and a *Continue reading · Page 98* bar. Stats
+reported 475 pages for the week, matching the sum of every logged session.
+
+**Rules that held under test:**
+- Re-reading pages 10–20 was recorded in the log but did **not** drag the bookmark
+  backwards — history stays honest, the bookmark only moves forward.
+- Logging past the last page → *"This book only has 279 pages."*
+- End page before start page → rejected by Zod with a field error.
+- Another user's `bookId` → *"That book is no longer in your library."* The ownership
+  scope holds; there is no path to a row you don't own.
+- Marking finished set `current_page` to the last page, stamped `finished_at`, and
+  moved the book to the Finished tab.
 
 **One thing worth recording:** `@better-auth/cli` still publishes 1.4.x while the
 library is on 1.7.x, and its generated schema omits `account.issuer`, which 1.7
