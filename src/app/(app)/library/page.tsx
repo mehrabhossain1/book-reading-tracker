@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Plus } from "lucide-react";
+import { BookPlus, Plus } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import type { BookStatus } from "@/db/schema";
 import { requireUser } from "@/lib/session";
@@ -30,38 +31,51 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
 
   const now = new Date();
   const empty = BOOK_STATUS_META[status];
+  const activeCount = counts.reading ?? 0;
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Library</h1>
-        <Button asChild size="sm" className="md:hidden">
-          <Link href="/books/new">
-            <Plus className="size-4" />
-            Add
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Library"
+        description={
+          activeCount > 0
+            ? `${activeCount} ${activeCount === 1 ? "book" : "books"} on the go.`
+            : "Everything you're reading, in one place."
+        }
+        action={
+          <Button asChild className="hidden gap-1.5 md:inline-flex xl:hidden">
+            <Link href="/books/new">
+              <Plus className="size-4" aria-hidden />
+              Add a book
+            </Link>
+          </Button>
+        }
+      />
 
-      <div className="mt-4">
+      <div className="mt-5">
         <LibraryTabs active={status} counts={counts} />
       </div>
 
       {books.length === 0 ? (
-        <div className="border-border mt-8 rounded-lg border border-dashed px-6 py-14 text-center">
-          <p className="font-medium">{empty.emptyTitle}</p>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+        <div className="border-border bg-card/50 mt-6 rounded-2xl border border-dashed px-6 py-16 text-center">
+          <span className="bg-primary/10 text-primary mx-auto flex size-11 items-center justify-center rounded-xl">
+            <BookPlus className="size-5" aria-hidden />
+          </span>
+          <p className="mt-4 font-medium">{empty.emptyTitle}</p>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed text-pretty">
             {empty.emptyBody}
           </p>
-          <Button asChild className="mt-6">
+          <Button asChild size="lg" className="mt-6 gap-1.5">
             <Link href="/books/new">
-              <Plus className="size-4" />
+              <Plus className="size-4" aria-hidden />
               Add a book
             </Link>
           </Button>
         </div>
       ) : (
-        <ul className="mt-2">
+        // Single column until there is genuinely room for two — below that a
+        // grid just makes each card too narrow for the progress line.
+        <ul className="mt-5 grid gap-3 xl:grid-cols-2">
           {books.map((book) => (
             <BookRow key={book.id} book={book} now={now} />
           ))}

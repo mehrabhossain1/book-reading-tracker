@@ -382,3 +382,74 @@ is structural rather than a fourth entry in the tab array:
 Verified live: books created as `want_to_read` and `abandoned` now render under their
 tabs with correct counts, and logging progress on a queued book promotes it to
 *Reading* on its own.
+
+---
+
+## 11. UI pass — theme colour and responsive layout
+
+### Palette
+
+A warm paper ground with a bronze accent, replacing the default neutral greyscale.
+The reading-app category converges on warm off-white rather than pure white —
+[Headway](https://mobbin.com/screens/800e36d6-8d06-4465-b308-88181fd76f8a) and
+[Fable](https://mobbin.com/screens/48fc8dbc-4ca7-4fe3-9c5b-d009ca5c08a1) both pair
+cream with one strong colour, and
+[Goodreads](https://mobbin.com/screens/08c279fa-bee5-4839-8ed2-f81acf6071c0) is warm
+throughout. It reads as paper and is easier on the eye for long sittings.
+
+Colour is **not eyeballed**. Every value is OKLCH, and
+`src/app/__tests__/palette.test.ts` parses `globals.css` at test time to assert:
+
+- 13 foreground/background pairs meet WCAG AA (4.5:1 for text, 3:1 for UI elements),
+  in **both** light and dark;
+- every colour is inside the sRGB gamut — this caught the first accent, which was
+  0.5% over the gamut boundary at that lightness;
+- `.dark` only overrides tokens `:root` already defines.
+
+30 assertions, so a future palette tweak that breaks contrast fails the build rather
+than shipping.
+
+### Responsive: three tiers, not one breakpoint
+
+Previously a single `md` switch treated a tablet exactly like a desktop, giving a
+240px sidebar on an 834px viewport.
+
+| Width | Navigation | Content |
+|---|---|---|
+| `< 768px` | Bottom tab bar (56px targets, safe-area inset) + compact top bar | Single column, edge-to-edge cards |
+| `768–1279px` | 64px icon rail, after [Semrush](https://mobbin.com/screens/4f76b9f3-4802-4c9c-82af-4ead0e15b220) | Single column, full width |
+| `≥ 1280px` | 240px sidebar with labels | Two-column book grid |
+
+### Other modern-UI work
+
+- Focus-visible rings on every interactive element — the browser default vanished
+  against the warm ground.
+- `prefers-reduced-motion` honoured globally.
+- Tabular numerals on every figure, so page counts don't jitter.
+- Touch targets ≥44px on mobile; `env(safe-area-inset-bottom)` on the tab bar.
+- Book rows became cards with a stretched link (whole card tappable, buttons still
+  independently clickable).
+- The resume hint in the log dialog is now tinted in the accent — it is the
+  signature of the product and had been styling itself as fine print.
+
+### Verified by driving the real browser
+
+Rather than assuming, the production build was driven with a headless Chrome that
+signed up, added five books, logged progress on each, marked one finished, and used
+the status dropdown — then screenshotted library, stats, settings, book detail and
+the log dialog at 390px, 834px and 1440px.
+
+Five defects that only showed up in the pixels, all fixed:
+
+1. Two `+` buttons on mobile (top bar and page header both rendered one).
+2. The status tab strip clipped mid-word with no scroll affordance — now fades.
+3. The "To page" placeholder showed the total page count in grey, reading as a
+   pre-filled value rather than a hint.
+4. A single-day stats bar rendered as a wide block instead of a bar.
+5. **Book detail on mobile** put the actions on their own line under a tall cover,
+   leaving a dead gap. The header was restructured so cover and identity share a
+   row and the progress card runs full width beneath.
+
+The browser dependency was temporary and has been removed; it can come back as a
+proper visual-regression script if that becomes worth keeping.
+

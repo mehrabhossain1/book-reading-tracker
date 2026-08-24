@@ -77,7 +77,12 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
 
   return (
     <div>
-      <h1 className="text-center text-xl font-semibold tracking-tight">{copy.heading}</h1>
+      <h1 className="text-center text-lg font-semibold tracking-tight">{copy.heading}</h1>
+      <p className="text-muted-foreground mt-1.5 text-center text-sm text-pretty">
+        {mode === "sign-up"
+          ? "Keep your place in every book you're reading."
+          : "Pick up where you left off."}
+      </p>
 
       {googleEnabled ? (
         <>
@@ -85,7 +90,7 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
             type="button"
             variant="outline"
             size="lg"
-            className="mt-8 w-full"
+            className="mt-6 w-full"
             onClick={() =>
               authClient.signIn.social({ provider: "google", callbackURL: next })
             }
@@ -99,7 +104,7 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
           </div>
         </>
       ) : (
-        <div className="h-8" />
+        <div className="h-6" />
       )}
 
       <form onSubmit={onSubmit} noValidate>
@@ -147,7 +152,12 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
             </Alert>
           )}
 
-          <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
+          <Button
+            type="submit"
+            size="lg"
+            className="mt-1 w-full"
+            disabled={form.formState.isSubmitting}
+          >
             {form.formState.isSubmitting ? "One moment…" : copy.submit}
           </Button>
         </FieldGroup>

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+import { PageHeader } from "@/components/layout/page-header";
 import { requireUser } from "@/lib/session";
 import { BookForm } from "@/modules/books/components/book-form";
 import { getBook } from "@/modules/books/queries";
@@ -13,8 +14,8 @@ export default async function EditBookPage({ params }: PageProps<"/books/[bookId
   if (!book) notFound();
 
   return (
-    <div className="max-w-lg">
-      <h1 className="text-xl font-semibold tracking-tight">Edit book</h1>
+    <div className="max-w-xl">
+      <PageHeader title="Edit book" />
       <div className="mt-8">
         <BookForm
           book={{

@@ -106,10 +106,12 @@ export function LogProgressDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="truncate">{book.title}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="line-clamp-2 text-left leading-snug">
+            {book.title}
+          </DialogTitle>
+          <DialogDescription className="text-left">
             {book.currentPage > 0
-              ? `You left off on page ${book.currentPage}.`
+              ? `You left off on page ${book.currentPage} of ${book.totalPages}.`
               : "You haven't logged any pages yet."}
           </DialogDescription>
         </DialogHeader>
@@ -125,6 +127,7 @@ export function LogProgressDialog({
                   inputMode="numeric"
                   min={1}
                   max={book.totalPages}
+                  className="tabular h-11 text-base sm:h-10 sm:text-sm"
                   aria-invalid={Boolean(form.formState.errors.startPage)}
                   {...form.register("startPage", { valueAsNumber: true })}
                 />
@@ -140,8 +143,8 @@ export function LogProgressDialog({
                   min={1}
                   max={book.totalPages}
                   autoFocus
-                  placeholder={String(book.totalPages)}
                   disabled={finished}
+                  className="tabular h-11 text-base sm:h-10 sm:text-sm"
                   aria-invalid={Boolean(form.formState.errors.endPage)}
                   {...form.register("endPage", { valueAsNumber: true })}
                 />
@@ -149,10 +152,16 @@ export function LogProgressDialog({
               </Field>
             </div>
 
-            <p className="text-muted-foreground -mt-1 text-xs">
+            <p
+              className={
+                finished
+                  ? "text-muted-foreground -mt-1 text-xs"
+                  : "text-primary bg-primary/8 -mt-1 rounded-lg px-2.5 py-2 text-xs font-medium"
+              }
+            >
               {finished
                 ? `Logging through to page ${book.totalPages}.`
-                : `Resuming where you left off · ${book.totalPages} pages total.`}
+                : `Starting from page ${resume} — right where you left off.`}
             </p>
 
             <Field>
@@ -181,7 +190,12 @@ export function LogProgressDialog({
               </FieldLabel>
             </Field>
 
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            <Button
+              type="submit"
+              size="lg"
+              className="mt-1 w-full"
+              disabled={form.formState.isSubmitting}
+            >
               {form.formState.isSubmitting ? "Saving…" : "Update"}
             </Button>
           </FieldGroup>

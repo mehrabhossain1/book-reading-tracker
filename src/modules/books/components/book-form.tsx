@@ -88,7 +88,7 @@ export function BookForm({
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form onSubmit={onSubmit} noValidate className="bg-card border-border rounded-2xl border p-4 sm:p-6">
       <FieldGroup>
         <Field data-invalid={Boolean(form.formState.errors.title)}>
           <FieldLabel htmlFor="title">Title</FieldLabel>
@@ -113,6 +113,7 @@ export function BookForm({
             id="totalPages"
             type="number"
             inputMode="numeric"
+            className="tabular"
             min={1}
             aria-invalid={Boolean(form.formState.errors.totalPages)}
             {...form.register("totalPages", { valueAsNumber: true })}
@@ -154,11 +155,22 @@ export function BookForm({
           </Select>
         </Field>
 
-        <div className="flex items-center gap-2">
-          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full sm:w-auto"
+            disabled={form.formState.isSubmitting}
+          >
             {form.formState.isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add book"}
           </Button>
-          <Button type="button" variant="ghost" size="lg" onClick={() => router.back()}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => router.back()}
+          >
             Cancel
           </Button>
         </div>

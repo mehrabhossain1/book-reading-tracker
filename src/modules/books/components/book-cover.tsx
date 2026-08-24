@@ -6,9 +6,9 @@ import { BookIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: "h-14 w-10",
+  sm: "h-16 w-11",
   md: "h-20 w-14",
-  lg: "h-40 w-28",
+  lg: "h-28 w-20 sm:h-40 sm:w-27",
 } as const;
 
 export function BookCover({
@@ -25,7 +25,7 @@ export function BookCover({
   return (
     <div
       className={cn(
-        "bg-muted text-muted-foreground border-border/60 flex shrink-0 items-center justify-center overflow-hidden rounded-sm border",
+        "bg-muted text-muted-foreground/60 ring-border/70 flex shrink-0 items-center justify-center overflow-hidden rounded-md shadow-sm ring-1",
         SIZES[size],
         className,
       )}
@@ -39,7 +39,7 @@ export function BookCover({
           className="h-full w-full object-cover"
         />
       ) : (
-        <BookIcon className="size-4" aria-hidden />
+        <BookIcon className="size-5" aria-hidden />
       )}
     </div>
   );
