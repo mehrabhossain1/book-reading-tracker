@@ -1,13 +1,8 @@
 import Link from "next/link";
 
-import { cn } from "@/lib/utils";
 import type { BookStatus } from "@/db/schema";
-
-const TABS = [
-  { status: "reading", label: "Reading" },
-  { status: "paused", label: "Paused" },
-  { status: "finished", label: "Finished" },
-] as const satisfies readonly { status: BookStatus; label: string }[];
+import { cn } from "@/lib/utils";
+import { BOOK_STATUS_META, STATUS_ORDER } from "@/modules/books/status";
 
 export function LibraryTabs({
   active,
@@ -17,26 +12,33 @@ export function LibraryTabs({
   counts: Partial<Record<BookStatus, number>>;
 }) {
   return (
-    <nav className="bg-muted inline-flex items-center gap-0.5 rounded-lg p-0.5">
-      {TABS.map(({ status, label }) => {
-        const count = counts[status] ?? 0;
-        return (
-          <Link
-            key={status}
-            href={status === "reading" ? "/library" : `/library?status=${status}`}
-            aria-current={active === status ? "page" : undefined}
-            className={cn(
-              "rounded-md px-3 py-1 text-sm transition-colors",
-              active === status
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label}
-            {count > 0 && <span className="text-muted-foreground ml-1.5 text-xs">{count}</span>}
-          </Link>
-        );
-      })}
-    </nav>
+    // Scrolls rather than wraps on narrow screens, so no tab is ever cut off.
+    <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <nav className="bg-muted inline-flex w-max items-center gap-0.5 rounded-lg p-0.5">
+        {STATUS_ORDER.map((status) => {
+          const count = counts[status] ?? 0;
+          return (
+            <Link
+              key={status}
+              href={status === "reading" ? "/library" : `/library?status=${status}`}
+              aria-current={active === status ? "page" : undefined}
+              className={cn(
+                "rounded-md px-3 py-1 text-sm whitespace-nowrap transition-colors",
+                active === status
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {BOOK_STATUS_META[status].label}
+              {count > 0 && (
+                <span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
+                  {count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }

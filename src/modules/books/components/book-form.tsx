@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { BOOK_STATUSES, type BookStatus } from "@/db/schema";
 import { createBook, updateBook } from "@/modules/books/actions";
+import { BOOK_STATUS_META, STATUS_ORDER } from "@/modules/books/status";
 
 /** Form-side twin of createBookSchema — real numbers, no coercion. */
 const bookFormSchema = z.object({
@@ -37,14 +38,6 @@ const bookFormSchema = z.object({
 });
 
 type BookFormValues = z.infer<typeof bookFormSchema>;
-
-const STATUS_LABELS: Record<BookStatus, string> = {
-  reading: "Reading",
-  want_to_read: "Want to read",
-  paused: "Paused",
-  finished: "Finished",
-  abandoned: "Abandoned",
-};
 
 export function BookForm({
   book,
@@ -152,9 +145,9 @@ export function BookForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {BOOK_STATUSES.map((status) => (
+              {STATUS_ORDER.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {STATUS_LABELS[status]}
+                  {BOOK_STATUS_META[status].label}
                 </SelectItem>
               ))}
             </SelectContent>
