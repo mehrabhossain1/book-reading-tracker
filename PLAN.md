@@ -133,7 +133,10 @@ The Blinkist pattern is almost exactly this product: a segmented **In progress /
 control over a vertical list, each row carrying cover, title, author, a thin progress bar,
 and a "N left" affordance — plus a persistent **Continue reading** bar pinned at the bottom.
 
-- Segmented control: `Reading` · `Paused` · `Finished`
+- Segmented control over **every** status: `Reading` · `Want to read` · `Paused` ·
+  `Finished` · `Abandoned`, scrolling horizontally rather than wrapping on narrow
+  screens. Tabs, dropdown labels and empty states all read from one metadata map
+  (`modules/books/status.ts`) so a status can never exist without a home — see §10.
 - Row = cover thumbnail · title · author · progress bar · `p. 142 of 380 · 238 left`
 - Row overflow menu (`…`, as in Blinkist): Edit, Pause, Mark finished, Delete
 - Rows sorted by `last_read_at desc` — the neglected book sinks, visibly
@@ -355,3 +358,27 @@ library is on 1.7.x, and its generated schema omits `account.issuer`, which 1.7
 marks required. Checked against `getAuthTables()` from `@better-auth/core@1.7.1`
 and added by hand; sign-up would have failed at runtime otherwise. Anyone
 regenerating that file has to re-add it.
+
+---
+
+## 10. Fixed after v1 review
+
+**Statuses with no home (found by Mehrab, 2026-08-24).** The add-book form offered all
+five statuses while the library only had tabs for `reading`, `paused` and `finished`.
+A book saved as *Want to read* or *Abandoned* was written correctly but became
+unreachable in the UI — you could create it and then never find it again.
+
+The cause was two hand-maintained lists that had to agree and silently didn't. The fix
+is structural rather than a fourth entry in the tab array:
+
+- `modules/books/status.ts` is now the single source of truth — label, empty-state
+  title and body per status, plus the tab order.
+- It is declared `satisfies Record<BookStatus, StatusMeta>`, so adding a value to the
+  enum without metadata is a **compile error**.
+- A unit test asserts `STATUS_ORDER` covers every enum value exactly once, which is
+  the case the `satisfies` check can't catch.
+- The tab strip scrolls horizontally so five tabs still fit on a phone.
+
+Verified live: books created as `want_to_read` and `abandoned` now render under their
+tabs with correct counts, and logging progress on a queued book promotes it to
+*Reading* on its own.
