@@ -2,13 +2,14 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { RiBookmarkFill, RiCheckboxCircleFill, RiLoader4Line } from "react-icons/ri";
+import { RiCheckboxCircleFill, RiLoader4Line } from "react-icons/ri";
 
 import { Input } from "@/components/ui/input";
 import { fetchJson } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query/keys";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { cn } from "@/lib/utils";
+import { BookCover } from "@/modules/books/components/book-cover";
 import { libraryQuery } from "@/modules/books/query-options";
 import { normalizeTitle } from "@/modules/catalogue/normalize";
 import type { CatalogueMatch, EditionSuggestion } from "@/modules/catalogue/types";
@@ -171,18 +172,11 @@ export function TitleCombobox({
                   onMouseEnter={() => setActive(index)}
                   onClick={() => pick(edition)}
                   className={cn(
-                    "flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                    "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
                     index === active ? "bg-accent" : "bg-transparent",
                   )}
                 >
-                  <span className="bg-muted text-muted-foreground ring-border/70 flex h-11 w-8 shrink-0 items-center justify-center overflow-hidden rounded ring-1">
-                    {edition.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote host
-                      <img src={edition.coverUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-                    ) : (
-                      <RiBookmarkFill className="size-3.5" aria-hidden />
-                    )}
-                  </span>
+                  <BookCover title={edition.title} coverUrl={edition.coverUrl} size="xs" />
 
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">

@@ -213,8 +213,21 @@
   }
 }
 
-@utility safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+/* Safe-area padding, additive: `pt-safe-2.5` is pt-2.5 PLUS the device's top
+   inset. It never replaces a component's own padding, so on anything without a
+   notch or home indicator it is exactly the normal spacing step.
+   (The first version replaced the padding — a bare `padding-top: env(...)` —
+   which collapsed the mobile header, since the inset is 0 in a Safari tab.)
+   Insets are only non-zero because the root viewport sets viewport-fit=cover. */
+@utility pt-safe-* {
+  padding-top: calc(var(--spacing) * --value(number) + env(safe-area-inset-top, 0px));
+}
+@utility pb-safe-* {
+  padding-bottom: calc(var(--spacing) * --value(number) + env(safe-area-inset-bottom, 0px));
+}
+@utility px-safe-* {
+  padding-left: calc(var(--spacing) * --value(number) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--spacing) * --value(number) + env(safe-area-inset-right, 0px));
 }
 
 /* Sweep for LinkPendingBar. */
@@ -226,16 +239,6 @@
   animation: link-pending 0.9s ease-in-out infinite;
 }
 
-/* Horizontal safe area for full-width fixed bars in iPhone landscape. */
-@utility safe-x {
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-}
-
-/* Top inset: 0 in a Safari tab, but real when installed to the home screen. */
-@utility safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
 
 /* ---------------------------------------------------------------------------
    Marketing layout system.

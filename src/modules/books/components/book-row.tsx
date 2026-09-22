@@ -113,7 +113,7 @@ export function BookRow({ book }: { book: BookDTO }) {
               <LogProgressDialog
                 book={book}
                 trigger={
-                  <Button variant="outline" size="sm" className="min-h-9">
+                  <Button variant="outline" size="sm">
                     Log progress
                   </Button>
                 }

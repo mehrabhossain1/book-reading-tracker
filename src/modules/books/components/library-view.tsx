@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { BookPlus, Plus } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { BookRow } from "@/modules/books/components/book-row";
@@ -63,21 +64,21 @@ export function LibraryView() {
       </div>
 
       {visible.length === 0 ? (
-        <div className="border-border bg-card/50 mt-6 rounded-2xl border border-dashed px-6 py-16 text-center">
-          <span className="bg-primary/10 text-primary mx-auto flex size-11 items-center justify-center rounded-xl">
-            <BookPlus className="size-5" aria-hidden />
-          </span>
-          <p className="mt-4 font-medium">{empty.emptyTitle}</p>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed text-pretty">
-            {empty.emptyBody}
-          </p>
-          <Button asChild size="lg" className="mt-6 gap-1.5">
-            <Link href="/books/new">
-              <Plus className="size-4" aria-hidden />
-              Add a book
-            </Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={BookPlus}
+          title={empty.emptyTitle}
+          className="mt-6"
+          action={
+            <Button asChild size="lg" className="gap-1.5">
+              <Link href="/books/new">
+                <Plus className="size-4" aria-hidden />
+                Add a book
+              </Link>
+            </Button>
+          }
+        >
+          {empty.emptyBody}
+        </EmptyState>
       ) : (
         <ul className="mt-5 grid gap-3 xl:grid-cols-2">
           {visible.map((book) => (

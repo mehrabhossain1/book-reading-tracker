@@ -1,23 +1,12 @@
 "use client";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { BookCheck, BookOpen, Flame, Layers, type LucideIcon } from "lucide-react";
+import { BookCheck, BookOpen, Flame, Layers } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { StatTile } from "@/components/stat-tile";
 import { plural } from "@/lib/format";
 import { statsQuery } from "@/modules/books/query-options";
-
-function Stat({ label, value, icon: Icon }: { label: string; value: number; icon: LucideIcon }) {
-  return (
-    <div className="bg-card border-border rounded-2xl border p-4">
-      <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <p className="tabular mt-3 text-2xl font-semibold tracking-tight">{value}</p>
-      <p className="text-muted-foreground mt-0.5 text-xs">{label}</p>
-    </div>
-  );
-}
 
 export function StatsView() {
   const { data: stats } = useSuspenseQuery(statsQuery());
@@ -29,10 +18,10 @@ export function StatsView() {
       <PageHeader title="Stats" description="How the reading is actually going." />
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Pages this week" value={stats.pagesThisWeek} icon={BookOpen} />
-        <Stat label="Day streak" value={stats.streak} icon={Flame} />
-        <Stat label="Finished this year" value={stats.finishedThisYear} icon={BookCheck} />
-        <Stat label="On the go" value={stats.activeBooks} icon={Layers} />
+        <StatTile label="Pages this week" value={stats.pagesThisWeek} icon={BookOpen} />
+        <StatTile label="Day streak" value={stats.streak} icon={Flame} />
+        <StatTile label="Finished this year" value={stats.finishedThisYear} icon={BookCheck} />
+        <StatTile label="On the go" value={stats.activeBooks} icon={Layers} />
       </div>
 
       <section className="bg-card border-border mt-6 rounded-2xl border p-4 sm:p-6">

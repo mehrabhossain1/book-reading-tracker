@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { IconType } from "react-icons";
 import {
   RiBook2Fill,
   RiFileList3Fill,
@@ -8,7 +7,9 @@ import {
   RiUserForbidFill,
 } from "react-icons/ri";
 
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
+import { StatTile } from "@/components/stat-tile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -19,29 +20,6 @@ import { ROLE_LABELS, isSuperAdmin, toRole } from "@/modules/admin/permissions";
 import { getPlatformMetrics, listPlatformUsers } from "@/modules/admin/queries";
 
 export const metadata: Metadata = { title: "Admin" };
-
-function Metric({
-  label,
-  value,
-  hint,
-  icon: Icon,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  icon: IconType;
-}) {
-  return (
-    <div className="bg-card border-border rounded-2xl border p-4">
-      <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <p className="tabular mt-3 text-2xl font-semibold tracking-tight">{value}</p>
-      <p className="text-muted-foreground mt-0.5 text-xs">{label}</p>
-      {hint && <p className="text-muted-foreground/70 mt-1 text-[0.6875rem]">{hint}</p>}
-    </div>
-  );
-}
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const viewer = await requireStaff();
@@ -64,21 +42,21 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <Metric
+        <StatTile
           label="Accounts"
           value={metrics.totalUsers}
           hint={`+${metrics.newUsersThisWeek} this week`}
           icon={RiGroupFill}
         />
-        <Metric label="Staff" value={metrics.staff} icon={RiShieldUserFill} />
-        <Metric label="Banned" value={metrics.banned} icon={RiUserForbidFill} />
-        <Metric
+        <StatTile label="Staff" value={metrics.staff} icon={RiShieldUserFill} />
+        <StatTile label="Banned" value={metrics.banned} icon={RiUserForbidFill} />
+        <StatTile
           label="Books"
           value={metrics.totalBooks}
           hint={`${metrics.activeBooks} being read`}
           icon={RiBook2Fill}
         />
-        <Metric
+        <StatTile
           label="Pages logged"
           value={metrics.pagesLogged}
           hint={plural(metrics.totalSessions, "session")}
@@ -104,9 +82,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </div>
 
         {users.length === 0 ? (
-          <p className="text-muted-foreground border-border mt-4 rounded-xl border border-dashed px-4 py-10 text-center text-sm">
+          <EmptyState size="compact" className="mt-4">
             No accounts match “{search}”.
-          </p>
+          </EmptyState>
         ) : (
           <ul className="mt-4 space-y-2">
             {users.map((row) => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { BookX, CheckCircle2, ChevronLeft, Pencil } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { formatDate, plural } from "@/lib/format";
@@ -27,7 +28,7 @@ function Fact({ label, value }: { label: string; value: string | number }) {
 
 function BackToLibrary() {
   return (
-    <Button asChild variant="ghost" size="sm" className="-ml-2 min-h-9 gap-1">
+    <Button asChild variant="ghost" size="sm" className="-ml-2 gap-1">
       <Link href="/library">
         <ChevronLeft className="size-4" aria-hidden />
         Library
@@ -45,13 +46,9 @@ export function BookDetailView({ bookId }: { bookId: string }) {
     return (
       <div>
         <BackToLibrary />
-        <div className="border-border mt-6 rounded-2xl border border-dashed px-6 py-16 text-center">
-          <BookX className="text-muted-foreground mx-auto size-8" aria-hidden />
-          <p className="mt-4 font-medium">This book isn&apos;t on your shelf</p>
-          <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm">
-            It may have been deleted. Your other books are still in the library.
-          </p>
-        </div>
+        <EmptyState icon={BookX} title="This book isn't on your shelf" className="mt-6">
+          It may have been deleted. Your other books are still in the library.
+        </EmptyState>
       </div>
     );
   }
@@ -79,7 +76,7 @@ export function BookDetailView({ bookId }: { bookId: string }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <Button asChild variant="ghost" size="icon-sm" className="size-9" aria-label="Edit book">
+            <Button asChild variant="ghost" size="icon-sm" aria-label="Edit book">
               <Link href={`/books/${book.id}/edit`}>
                 <Pencil className="size-4" />
               </Link>
@@ -114,7 +111,7 @@ export function BookDetailView({ bookId }: { bookId: string }) {
           <LogProgressDialog
             book={book}
             trigger={
-              <Button size="lg" className="mt-4 min-h-11 w-full sm:w-auto">
+              <Button size="lg" className="mt-4 w-full sm:w-auto">
                 Update your progress
               </Button>
             }

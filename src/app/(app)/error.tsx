@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { RotateCcw, WifiOff } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -15,16 +16,18 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
   }, [error]);
 
   return (
-    <div className="border-border mx-auto mt-10 max-w-md rounded-2xl border border-dashed px-6 py-14 text-center">
-      <WifiOff className="text-muted-foreground mx-auto size-8" aria-hidden />
-      <p className="mt-4 font-medium">This didn&apos;t load</p>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Usually a dropped connection. Your reading log is safe — nothing was lost.
-      </p>
-      <Button onClick={reset} size="lg" className="mt-6 min-h-11 gap-2">
-        <RotateCcw className="size-4" aria-hidden />
-        Try again
-      </Button>
-    </div>
+    <EmptyState
+      icon={WifiOff}
+      title="This didn't load"
+      className="mx-auto mt-10 max-w-md"
+      action={
+        <Button onClick={reset} size="lg" className="gap-2">
+          <RotateCcw className="size-4" aria-hidden />
+          Try again
+        </Button>
+      }
+    >
+      Usually a dropped connection. Your reading log is safe — nothing was lost.
+    </EmptyState>
   );
 }

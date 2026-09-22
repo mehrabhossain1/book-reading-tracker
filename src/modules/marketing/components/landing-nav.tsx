@@ -45,7 +45,7 @@ export function LandingNav() {
     <header
       ref={scope}
       className={cn(
-        "safe-top fixed inset-x-0 top-0 z-50 transition-colors duration-300",
+        "pt-safe-0 fixed inset-x-0 top-0 z-50 transition-colors duration-300",
         solid ? "bg-ink/85 border-ink-line/50 border-b backdrop-blur-xl" : "border-b border-transparent",
       )}
     >

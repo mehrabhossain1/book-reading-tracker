@@ -28,7 +28,7 @@ export function BookActionsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className="size-9" aria-label="Book options">
+        <Button variant="ghost" size="icon-sm" aria-label="Book options">
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>

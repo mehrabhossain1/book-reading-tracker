@@ -6,6 +6,8 @@ import { BookIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
+  /** Inline thumbnails: the continue-reading bar and catalogue suggestions. */
+  xs: "h-11 w-8",
   sm: "h-16 w-11",
   md: "h-20 w-14",
   lg: "h-28 w-20 sm:h-40 sm:w-27",

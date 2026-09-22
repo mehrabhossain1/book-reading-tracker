@@ -99,7 +99,7 @@ export function BottomNav({ isStaff = false }: { isStaff?: boolean }) {
     <nav
       aria-label="Main"
       style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-      className="bg-background/90 border-border safe-bottom safe-x fixed inset-x-0 bottom-0 z-40 grid border-t backdrop-blur-md md:hidden"
+      className="bg-background/90 border-border pb-safe-0 px-safe-0 fixed inset-x-0 bottom-0 z-40 grid border-t backdrop-blur-md md:hidden"
     >
       {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);

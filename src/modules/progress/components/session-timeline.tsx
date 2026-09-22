@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/empty-state";
 import { RelativeTime } from "@/components/relative-time";
 import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -5,11 +6,7 @@ import type { SessionDTO } from "@/modules/books/dto";
 
 export function SessionTimeline({ sessions }: { sessions: SessionDTO[] }) {
   if (sessions.length === 0) {
-    return (
-      <p className="text-muted-foreground border-border rounded-xl border border-dashed px-4 py-8 text-center text-sm">
-        No sessions logged yet. The first one starts the history.
-      </p>
-    );
+    return <EmptyState size="compact">No sessions logged yet. The first one starts the history.</EmptyState>;
   }
 
   return (

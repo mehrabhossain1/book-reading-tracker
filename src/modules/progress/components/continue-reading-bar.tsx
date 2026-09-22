@@ -18,7 +18,7 @@ export function ContinueReadingBar({ book }: { book: BookDTO }) {
   return (
     <div className="pointer-events-none sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 mt-8 md:bottom-6">
       <div className="bg-card/95 border-border pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-2.5 shadow-lg backdrop-blur-md">
-        <BookCover title={book.title} coverUrl={book.coverUrl} className="h-11 w-8" />
+        <BookCover title={book.title} coverUrl={book.coverUrl} size="xs" />
         <div className="min-w-0 flex-1">
           <p className="text-primary text-[0.6875rem] font-medium tracking-wide uppercase">
             Continue reading
@@ -31,7 +31,7 @@ export function ContinueReadingBar({ book }: { book: BookDTO }) {
         <LogProgressDialog
           book={book}
           trigger={
-            <Button size="lg" className="min-h-11 shrink-0 gap-1.5">
+            <Button size="lg" className="shrink-0 gap-1.5">
               <span className="tabular">p.{resume}</span>
               <ArrowRight className="size-4" aria-hidden />
             </Button>

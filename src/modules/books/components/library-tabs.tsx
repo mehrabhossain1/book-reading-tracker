@@ -45,7 +45,7 @@ export function LibraryTabs({
                 onSelect(status);
               }}
               className={cn(
-                "flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.8125rem] whitespace-nowrap transition-colors",
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.8125rem] whitespace-nowrap transition-colors",
                 isActive
                   ? "bg-card text-foreground font-medium shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
