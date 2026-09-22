@@ -1,10 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTransition } from "react";
 import { Check, MoreHorizontal, Pause, Pencil, Play, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,83 +11,62 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { BookStatus } from "@/db/schema";
-import { deleteBook, setBookStatus } from "@/modules/books/actions";
+import type { BookDTO } from "@/modules/books/dto";
+import { useDeleteBookWithUndo, useSetBookStatus } from "@/modules/books/use-book-mutations";
 
 export function BookActionsMenu({
-  bookId,
-  status,
-  onDeleted,
+  book,
+  onBeforeDelete,
 }: {
-  bookId: string;
-  status: BookStatus;
-  onDeleted?: () => void;
+  book: BookDTO;
+  /** e.g. leave the detail page before the book disappears from under it. */
+  onBeforeDelete?: () => void;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, success: string) =>
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        toast.error(result.error ?? "That didn't work.");
-        return;
-      }
-      toast.success(success);
-      router.refresh();
-    });
+  const setStatus = useSetBookStatus();
+  const deleteWithUndo = useDeleteBookWithUndo();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" disabled={isPending} aria-label="Book options">
+        <Button variant="ghost" size="icon-sm" className="size-9" aria-label="Book options">
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem asChild>
-          <Link href={`/books/${bookId}`}>
+          <Link href={`/books/${book.id}/edit`}>
             <Pencil className="size-4" />
-            Open
+            Edit
           </Link>
         </DropdownMenuItem>
 
-        {status !== "finished" && (
-          <DropdownMenuItem
-            onSelect={() =>
-              run(() => setBookStatus({ bookId, status: "finished" }), "Marked as finished.")
-            }
-          >
+        {book.status !== "finished" && (
+          <DropdownMenuItem onSelect={() => setStatus.mutate({ bookId: book.id, status: "finished" })}>
             <Check className="size-4" />
             Mark finished
           </DropdownMenuItem>
         )}
 
-        {status === "reading" ? (
-          <DropdownMenuItem
-            onSelect={() => run(() => setBookStatus({ bookId, status: "paused" }), "Paused.")}
-          >
+        {book.status === "reading" ? (
+          <DropdownMenuItem onSelect={() => setStatus.mutate({ bookId: book.id, status: "paused" })}>
             <Pause className="size-4" />
             Pause
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            onSelect={() =>
-              run(() => setBookStatus({ bookId, status: "reading" }), "Back on the pile.")
-            }
-          >
+          <DropdownMenuItem onSelect={() => setStatus.mutate({ bookId: book.id, status: "reading" })}>
             <Play className="size-4" />
             Move to reading
           </DropdownMenuItem>
         )}
 
         <DropdownMenuSeparator />
+        {/* No confirm() any more: the Undo toast is the safety net, and a
+            blocking browser dialog was the one jarring moment in the app. */}
         <DropdownMenuItem
           variant="destructive"
           onSelect={() => {
-            if (!confirm("Delete this book and its whole reading history?")) return;
-            run(() => deleteBook({ bookId }), "Book deleted.");
-            onDeleted?.();
+            onBeforeDelete?.();
+            deleteWithUndo(book);
           }}
         >
           <Trash2 className="size-4" />

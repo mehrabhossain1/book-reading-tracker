@@ -13,6 +13,7 @@ references.
 | Database | Neon Postgres + Drizzle ORM |
 | UI | Tailwind CSS v4 + shadcn/ui (Radix), Lucide icons |
 | Validation | Zod 4 + react-hook-form |
+| Client data | TanStack Query 5 — SSR prefetch + hydration, optimistic mutations |
 | Tests | Vitest (domain math) |
 
 ## Getting started
@@ -101,6 +102,31 @@ src/
 `@better-auth/cli` currently publishes 1.4.x while the library is on 1.7.x, and its
 output omits `account.issuer`, which 1.7 requires. If you regenerate
 `src/db/schema/auth.ts`, re-add that column — the file carries a comment marking it.
+
+## Data flow and performance
+
+- **Reads**: each app page prefetches its query on the server
+  (`src/lib/query/prefetch.tsx`) and hydrates it into TanStack Query. The same
+  loader (`modules/books/loaders.ts`) backs the JSON routes the client refetches
+  from, so hydrated and refetched data can never differ in shape. Dates travel
+  as ISO strings (`modules/books/dto.ts`) — never Date objects, and never the
+  space-separated Postgres format Safari's parser rejects.
+- **The shelf is one query.** Tabs, counts and "Continue reading" derive from it
+  on the client (`modules/books/library.ts`), so switching tabs is instant.
+- **Writes are optimistic** (`modules/books/use-book-mutations.ts`): the cache
+  updates on tap, rolls back on refusal, and reconciles afterwards. The pure rules
+  they apply mirror the server's and are unit-tested against them.
+- **Delete has Undo.** The book leaves the UI at once; the server delete is sent
+  only after the 5s window. Closing the tab inside the window keeps the book.
+- **Navigation**: sidebar links fully prefetch; book rows prefetch on intent
+  (hover, focus, touch). No route-level `loading.tsx` — measured, a skeleton
+  *delayed* content, because React holds content until a shown fallback has
+  been visible ~300ms. Unprefetched links show `LinkPendingBar` instead.
+- **Server caching**: the landing page is static (CDN); catalogue search is
+  cached across all readers with `unstable_cache` and expired by tag on writes.
+- **React Compiler** is on (`reactCompiler: true`).
+
+`BETTER_AUTH_URL` still needs to be the deployed origin — see Environment.
 
 ## Shared book catalogue
 

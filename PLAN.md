@@ -674,3 +674,77 @@ catalogue is built from what readers actually add. The combobox is the seam: an
 external provider drops in behind the same component and the same `editionId`
 link, without changing the schema.
 
+## 15. Frontend performance pass — TanStack Query, optimistic UI, Safari
+
+### Measured, not asserted
+
+Same probe run against the previous build and this one, timing the real click
+event to the real DOM change inside the page, under 4G latency (150ms RTT):
+
+| Interaction | Before | After |
+|---|---|---|
+| Log progress → on screen | 582 ms | **21 ms** |
+| Library tab switch | 179 ms | **7 ms** |
+| Library → Stats | 185 ms | **22 ms** |
+| Stats → Library | 197 ms | **27 ms** |
+| Open a book, hovered first | 195 ms | **47 ms** |
+| Open a book, instant tap | 183 ms | 187 ms, acknowledged at 101 ms |
+
+The first probe timed Playwright calls and quantised readings into ~500ms steps
+(its polling backoff) — it reported opening a book 3× *slower*. Rewritten to time
+inside the page, and re-run against a build of the previous commit.
+
+### Why log-progress took a second
+
+The action ran its transaction, then `revalidatePath` re-rendered the page inside
+the action's own response, then the dialog called `router.refresh()`, which
+re-rendered the whole page again. Two full server renders per tap. Now: an
+optimistic cache write, the action, and one targeted invalidation.
+
+### What measurement changed
+
+- **Route skeletons were removed.** Added first, they made content *later*: React
+  holds content until a shown fallback has been visible ~300ms, so a 185ms page
+  arrived at ~320ms on every network speed. Replaced with full prefetch for the
+  sidebar and a pending hint on the tapped link.
+- **Hover prefetch did nothing at first.** `router.prefetch()` has no "full" mode,
+  and for a dynamic route with no `loading.js` it fetches nothing — a 700ms hover
+  made no difference. Flipping `<Link prefetch>` to `true` on intent fixed it.
+
+### Bugs found along the way
+
+1. **Infinite redirect loop** (since v1): a cookie that outlives its session —
+   after a ban, "revoke sessions", or a server-side sign-out — bounced between
+   `/library` and `/sign-in` forever. The proxy no longer redirects away from
+   `/sign-in` on cookie presence; the auth layout does it with a validated check.
+2. **iOS safe area was never applied**: without `viewport-fit=cover`,
+   `env(safe-area-inset-*)` is 0 on iPhone, so the tab bar's home-indicator padding
+   did nothing. Enabling it then required keeping content clear of the notch in
+   landscape (`.shell`, `safe-x`).
+3. **Typed or autofilled input wiped on hydration** (WebKit only). React Hook Form
+   writes a field's default into the DOM when it registers, so an empty default
+   erased anything typed — or filled by iOS Keychain — before hydration. 5/5 on
+   the sign-up form in WebKit, 0/5 in Chromium. The add-book form had it since
+   v1 (3/3). Fixed by leaving those defaults undefined, so the form adopts the DOM.
+
+### Verified
+
+25 adversarial checks pass in Chromium and in **WebKit 26.6** (the iOS Safari
+engine) at iPhone size with touch: optimistic writes land within 150ms and
+survive reload; a server refusal rolls back and reconciles; tab URLs and the back
+button work; Undo keeps the book and a refetch inside the window can't resurrect
+it; no `Invalid Date`, no horizontal scroll, backdrop blur applied, 16px inputs,
+no hydration mismatches.
+
+One exclusion, diagnosed: WebKit reports a route prefetch cancelled by a full-page
+reload as `…?_rsc=… due to access control checks` (failure reason: "Load request
+cancelled"). Console-only; not fixable from app code without hiding real errors.
+
+### Known, not fixed here
+
+- Stats day boundaries follow the server's timezone (UTC on Vercel), not the
+  reader's. Labels now come from the same place as the bucketing so they agree,
+  but a session at 02:00 in Dhaka still counts toward the previous UTC day.
+- Better Auth's 5-minute session cookie cache means a ban takes up to 5 minutes
+  to lock out a signed-in session.
+

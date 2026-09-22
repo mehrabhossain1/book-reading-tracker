@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +18,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { nextStartPage } from "@/modules/books/progress";
-import { logProgress } from "@/modules/progress/actions";
+import { useLogProgress } from "@/modules/books/use-book-mutations";
 import {
   logProgressFormSchema,
   type LogProgressFormValues,
@@ -47,8 +45,8 @@ export function LogProgressDialog({
   book: BookSummary;
   trigger: React.ReactNode;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const logProgress = useLogProgress();
 
   const resume = nextStartPage(book.currentPage, book.totalPages);
 
@@ -78,27 +76,25 @@ export function LogProgressDialog({
 
   const finished = useWatch({ control: form.control, name: "finished" });
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    const result = await logProgress({
-      bookId: values.bookId,
+  const onSubmit = form.handleSubmit((values) => {
+    // The server refuses a page past the end. Checking here too means the
+    // optimistic update can never show a page it will then have to take back.
+    if (!values.finished && values.endPage > book.totalPages) {
+      form.setError("endPage", { message: `This book only has ${book.totalPages} pages.` });
+      return;
+    }
+
+    // Close on tap. The list, the detail page and the history row update from
+    // the optimistic write; if the server refuses, they roll back with a toast.
+    setOpen(false);
+    logProgress.mutate({
+      bookId: book.id,
+      title: book.title,
       startPage: values.startPage,
       endPage: values.finished ? book.totalPages : values.endPage,
       note: values.note,
       finished: values.finished,
     });
-
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-
-    setOpen(false);
-    toast.success(
-      values.finished
-        ? `Finished ${book.title}.`
-        : `Now on page ${result.data.currentPage} of ${book.title}.`,
-    );
-    router.refresh();
   });
 
   return (

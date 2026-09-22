@@ -1,21 +1,22 @@
+"use client";
+
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { Book } from "@/db/schema";
 import { BookCover } from "@/modules/books/components/book-cover";
+import type { BookDTO } from "@/modules/books/dto";
 import { nextStartPage, progressPercent } from "@/modules/books/progress";
 import { LogProgressDialog } from "@/modules/progress/components/log-progress-dialog";
 
 /**
- * Pinned bar, after Blinkist's "Continue reading" strip: the single most likely
- * next action stays one tap away, whatever you scrolled to. Sits above the
- * mobile tab bar and clears the home indicator.
+ * Pinned bar, after Blinkist's "Continue reading" strip. Sits above the mobile
+ * tab bar and clears the home indicator.
  */
-export function ContinueReadingBar({ book }: { book: Book }) {
+export function ContinueReadingBar({ book }: { book: BookDTO }) {
   const resume = nextStartPage(book.currentPage, book.totalPages);
 
   return (
-    <div className="pointer-events-none sticky bottom-[4.5rem] z-30 mt-8 md:bottom-6">
+    <div className="pointer-events-none sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 mt-8 md:bottom-6">
       <div className="bg-card/95 border-border pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-2xl border p-2.5 shadow-lg backdrop-blur-md">
         <BookCover title={book.title} coverUrl={book.coverUrl} className="h-11 w-8" />
         <div className="min-w-0 flex-1">
@@ -28,14 +29,9 @@ export function ContinueReadingBar({ book }: { book: Book }) {
           </p>
         </div>
         <LogProgressDialog
-          book={{
-            id: book.id,
-            title: book.title,
-            totalPages: book.totalPages,
-            currentPage: book.currentPage,
-          }}
+          book={book}
           trigger={
-            <Button size="lg" className="shrink-0 gap-1.5">
+            <Button size="lg" className="min-h-11 shrink-0 gap-1.5">
               <span className="tabular">p.{resume}</span>
               <ArrowRight className="size-4" aria-hidden />
             </Button>

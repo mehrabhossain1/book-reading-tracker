@@ -1,84 +1,74 @@
 import "server-only";
 
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
 import { book, bookEdition } from "@/db/schema";
 import { TRIGRAM_MIN_LENGTH, normalizeTitle } from "@/modules/catalogue/normalize";
-
-export type EditionSuggestion = {
-  id: string;
-  title: string;
-  author: string | null;
-  coverUrl: string | null;
-  totalPages: number;
-  usageCount: number;
-  /** True when this reader already has this edition on their own shelf. */
-  onShelf: boolean;
-};
+import type { CatalogueMatch } from "@/modules/catalogue/types";
 
 /**
- * Typo-tolerant suggestions from the shared catalogue.
+ * Typo-tolerant catalogue search, cached on the server and shared by everyone.
  *
- * Two matchers, deliberately OR'd:
- *   - `ILIKE %term%` catches substrings ("broker" inside "the power broker"),
- *   - `%` (trigram similarity) catches typos ("powr brokr").
+ * It used to take a userId, to work out "is this already on your shelf?" in
+ * SQL. That one bit made every result per-user and therefore uncacheable. The
+ * client already holds the reader's whole shelf (each book carries its
+ * editionId), so it answers that question itself — and this, the expensive
+ * trigram search, becomes identical for every reader and cacheable for all.
  *
- * Both are served by the same GIN trigram index — gin_trgm_ops accelerates
- * leading-wildcard LIKE, which a btree index cannot do.
+ * Tagged "catalogue": books/actions.ts expires it when a write may have added
+ * an edition, so a newly contributed book is findable on the next search.
  *
- * Ranking uses word_similarity rather than plain similarity: plain similarity
- * is length-normalised, so a short query against a long title always scores
- * badly, which is exactly the autocomplete case.
+ * Matching: ILIKE for substrings OR `%` for typos, both served by the GIN
+ * trigram index; ranked by word_similarity, since plain similarity is
+ * length-normalised and scores short queries against long titles badly.
  */
-export async function searchEditions(
-  userId: string,
-  term: string,
-  limit = 8,
-): Promise<EditionSuggestion[]> {
-  const query = normalizeTitle(term);
-  if (!query) return [];
+export const searchCatalogue = unstable_cache(
+  async (query: string, limit: number): Promise<CatalogueMatch[]> => {
+    const columns = {
+      id: bookEdition.id,
+      title: bookEdition.title,
+      author: bookEdition.author,
+      coverUrl: bookEdition.coverUrl,
+      totalPages: bookEdition.totalPages,
+      usageCount: bookEdition.usageCount,
+    };
 
-  const onShelf = sql<boolean>`exists (
-    select 1 from ${book}
-    where ${book.editionId} = ${bookEdition.id} and ${book.userId} = ${userId}
-  )`;
+    // Trigrams need three characters; below that, prefix-match.
+    if (query.length < TRIGRAM_MIN_LENGTH) {
+      return db
+        .select(columns)
+        .from(bookEdition)
+        .where(ilike(bookEdition.normalizedTitle, `${query}%`))
+        .orderBy(desc(bookEdition.usageCount), bookEdition.title)
+        .limit(limit);
+    }
 
-  const columns = {
-    id: bookEdition.id,
-    title: bookEdition.title,
-    author: bookEdition.author,
-    coverUrl: bookEdition.coverUrl,
-    totalPages: bookEdition.totalPages,
-    usageCount: bookEdition.usageCount,
-    onShelf,
-  };
-
-  // Trigrams need three characters; below that, prefix-match instead of
-  // returning nothing.
-  if (query.length < TRIGRAM_MIN_LENGTH) {
     return db
       .select(columns)
       .from(bookEdition)
-      .where(ilike(bookEdition.normalizedTitle, `${query}%`))
-      .orderBy(desc(bookEdition.usageCount), bookEdition.title)
+      .where(
+        or(
+          ilike(bookEdition.normalizedTitle, `%${query}%`),
+          sql`${bookEdition.normalizedTitle} % ${query}`,
+        ),
+      )
+      .orderBy(
+        sql`word_similarity(${query}, ${bookEdition.normalizedTitle}) desc`,
+        desc(bookEdition.usageCount),
+      )
       .limit(limit);
-  }
+  },
+  ["catalogue-search"],
+  { tags: ["catalogue"], revalidate: 600 },
+);
 
-  return db
-    .select(columns)
-    .from(bookEdition)
-    .where(
-      or(
-        ilike(bookEdition.normalizedTitle, `%${query}%`),
-        sql`${bookEdition.normalizedTitle} % ${query}`,
-      ),
-    )
-    .orderBy(
-      sql`word_similarity(${query}, ${bookEdition.normalizedTitle}) desc`,
-      desc(bookEdition.usageCount),
-    )
-    .limit(limit);
+/** Normalises the raw input so "The Power" and "the power " share one cache entry. */
+export async function searchEditions(term: string, limit = 8): Promise<CatalogueMatch[]> {
+  const query = normalizeTitle(term);
+  if (!query) return [];
+  return searchCatalogue(query, limit);
 }
 
 export async function getEdition(editionId: string) {

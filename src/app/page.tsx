@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-import { getCurrentUser } from "@/lib/session";
 import { Catalogue } from "@/modules/marketing/components/catalogue";
 import { Cta } from "@/modules/marketing/components/cta";
 import { Features } from "@/modules/marketing/components/features";
@@ -19,10 +17,13 @@ export const metadata: Metadata = {
     "Log the page you stopped on. Pick a book up a month later and the page to resume from is already filled in — for every book, independently.",
 };
 
-export default async function HomePage() {
-  const user = await getCurrentUser();
-  if (user) redirect("/library");
-
+/**
+ * Static: prerendered at build and served from the CDN edge. It used to read
+ * the session to redirect signed-in readers, which made every visit to the
+ * heaviest page in the app a server render. That redirect now lives in
+ * proxy.ts, which runs before the static file is served.
+ */
+export default function HomePage() {
   return (
     <>
       <LandingNav />

@@ -1,7 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 
-export default function AuthLayout({ children }: LayoutProps<"/">) {
+import { getCurrentUser } from "@/lib/session";
+
+export default async function AuthLayout({ children }: LayoutProps<"/">) {
+  // A *validated* check, unlike the proxy's cookie-presence check. A stale
+  // cookie resolves to no user here, so the form renders instead of looping.
+  if (await getCurrentUser()) redirect("/library");
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6">
       <div className="w-full max-w-[24rem]">

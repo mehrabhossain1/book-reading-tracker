@@ -48,7 +48,12 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
     resolver: zodResolver(
       (mode === "sign-up" ? signUpSchema : signInSchema) as typeof signUpSchema,
     ),
-    defaultValues: { name: "", email: "", password: "" },
+    // No defaultValues, deliberately. When React Hook Form registers a field
+    // that has a default, it writes that default into the DOM — and this form
+    // is server-rendered, so a reader can type (or iOS Keychain can autofill)
+    // before hydration. A "" default then wiped their input: reproduced 5/5 in
+    // WebKit, 0/5 in Chromium, which simply hydrates faster. With no default,
+    // RHF adopts the value already in the field instead of overwriting it.
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -71,8 +76,10 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
       return;
     }
 
+    // Just push: the app lives in a different layout group from the auth
+    // pages, so it renders fresh for the new session anyway. A refresh() here
+    // made a second full navigation and doubled every request after sign-in.
     router.push(next);
-    router.refresh();
   });
 
   return (

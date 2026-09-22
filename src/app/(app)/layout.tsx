@@ -24,7 +24,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const impersonating = Boolean(session?.session.impersonatedBy);
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col">
+    // safe-x: the whole app sits inside the notch-safe area in iPhone landscape.
+    // The app ground is one flat colour, so nothing visibly stops at the edge.
+    <div className="safe-x flex min-h-dvh flex-1 flex-col">
       {impersonating && <ImpersonationBanner name={user.name} />}
       <div className="flex flex-1">
       {/* Tablet: icon rail */}
@@ -39,7 +41,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           className="mt-4 size-10 rounded-lg"
           aria-label="Add a book"
         >
-          <Link href="/books/new">
+          <Link href="/books/new" prefetch>
             <Plus className="size-4" />
           </Link>
         </Button>
@@ -55,7 +57,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <SidebarNav isStaff={isStaff} />
         </div>
         <Button asChild className="mt-4 justify-start gap-2" size="lg">
-          <Link href="/books/new">
+          <Link href="/books/new" prefetch>
             <Plus className="size-4" />
             Add a book
           </Link>
@@ -67,11 +69,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile: top bar */}
-        <header className="bg-background/90 border-border sticky top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 backdrop-blur-md md:hidden">
+        <header className="bg-background/90 border-border safe-top sticky top-0 z-30 flex items-center justify-between border-b px-4 py-2.5 backdrop-blur-md md:hidden">
           <Brand />
           <div className="flex items-center gap-1">
             <Button asChild size="icon-sm" variant="ghost">
-              <Link href="/books/new" aria-label="Add a book">
+              <Link href="/books/new" prefetch aria-label="Add a book">
                 <Plus className="size-[1.125rem]" />
               </Link>
             </Button>

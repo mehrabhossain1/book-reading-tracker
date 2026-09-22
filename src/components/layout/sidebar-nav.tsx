@@ -27,6 +27,10 @@ export function SidebarNav({ isStaff = false }: { isStaff?: boolean }) {
           <Link
             key={href}
             href={href}
+            // Full prefetch (route + data). These few links are always on
+            // screen, so the destination is usually in the client cache before
+            // the tap — it renders with content, no skeleton, no round trip.
+            prefetch
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
@@ -64,6 +68,10 @@ export function RailNav({ isStaff = false }: { isStaff?: boolean }) {
           <Link
             key={href}
             href={href}
+            // Full prefetch (route + data). These few links are always on
+            // screen, so the destination is usually in the client cache before
+            // the tap — it renders with content, no skeleton, no round trip.
+            prefetch
             title={label}
             aria-label={label}
             aria-current={active ? "page" : undefined}
@@ -91,7 +99,7 @@ export function BottomNav({ isStaff = false }: { isStaff?: boolean }) {
     <nav
       aria-label="Main"
       style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-      className="bg-background/90 border-border safe-bottom fixed inset-x-0 bottom-0 z-40 grid border-t backdrop-blur-md md:hidden"
+      className="bg-background/90 border-border safe-bottom safe-x fixed inset-x-0 bottom-0 z-40 grid border-t backdrop-blur-md md:hidden"
     >
       {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);
@@ -99,6 +107,10 @@ export function BottomNav({ isStaff = false }: { isStaff?: boolean }) {
           <Link
             key={href}
             href={href}
+            // Full prefetch (route + data). These few links are always on
+            // screen, so the destination is usually in the client cache before
+            // the tap — it renders with content, no skeleton, no round trip.
+            prefetch
             aria-current={active ? "page" : undefined}
             // min-h-14 keeps every tab above the 44px touch-target floor.
             className={cn(

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -30,14 +31,19 @@ export async function countBooksByStatus(userId: string) {
   >;
 }
 
-export async function getBook(userId: string, bookId: string) {
+/**
+ * Wrapped in React `cache()`: a book page calls this from both
+ * generateMetadata and the page itself, and without deduping that is two
+ * identical database round trips per view.
+ */
+export const getBook = cache(async (userId: string, bookId: string) => {
   const [row] = await db
     .select()
     .from(book)
     .where(and(eq(book.userId, userId), eq(book.id, bookId)))
     .limit(1);
   return row ?? null;
-}
+});
 
 export async function getBookSessions(userId: string, bookId: string, limit = 100) {
   return db

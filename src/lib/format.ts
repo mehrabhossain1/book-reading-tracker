@@ -8,7 +8,11 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60 * 1000],
 ];
 
-export function formatRelative(date: Date | null, now: Date = new Date()): string {
+type DateInput = Date | string | null;
+const toDate = (value: DateInput) => (value === null ? null : typeof value === "string" ? new Date(value) : value);
+
+export function formatRelative(input: DateInput, now: Date = new Date()): string {
+  const date = toDate(input);
   if (!date) return "not started";
   const elapsed = date.getTime() - now.getTime();
   const magnitude = Math.abs(elapsed);
@@ -20,7 +24,8 @@ export function formatRelative(date: Date | null, now: Date = new Date()): strin
   return "just now";
 }
 
-export function formatDate(date: Date | null): string {
+export function formatDate(input: DateInput): string {
+  const date = toDate(input);
   if (!date) return "—";
   return new Intl.DateTimeFormat("en", {
     day: "numeric",

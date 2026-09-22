@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,10 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BOOK_STATUSES, type BookStatus } from "@/db/schema";
+import { queryKeys } from "@/lib/query/keys";
 import { createBook, updateBook } from "@/modules/books/actions";
 import { BOOK_STATUS_META, STATUS_ORDER } from "@/modules/books/status";
 import { TitleCombobox } from "@/modules/catalogue/components/title-combobox";
-import type { EditionSuggestion } from "@/modules/catalogue/queries";
+import type { EditionSuggestion } from "@/modules/catalogue/types";
 
 /** Form-side twin of createBookSchema — real numbers, no coercion. */
 const bookFormSchema = z.object({
@@ -58,18 +60,26 @@ export function BookForm({
   };
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isEdit = Boolean(book);
 
   const form = useForm<BookFormValues>({
     resolver: zodResolver(bookFormSchema),
-    defaultValues: {
-      title: book?.title ?? "",
-      author: book?.author ?? "",
-      totalPages: book?.totalPages ?? Number.NaN,
-      coverUrl: book?.coverUrl ?? "",
-      status: book?.status ?? "reading",
-      editionId: undefined,
-    },
+    // Adding a book: only `status` gets a default. Empty-string defaults would
+    // be written over anything typed before hydration (see auth-form.tsx);
+    // leaving them undefined makes React Hook Form adopt the field's contents.
+    // Editing: the defaults are the saved values, identical to the server HTML,
+    // so there is nothing for them to overwrite.
+    defaultValues: book
+      ? {
+          title: book.title,
+          author: book.author ?? "",
+          totalPages: book.totalPages,
+          coverUrl: book.coverUrl ?? "",
+          status: book.status,
+          editionId: undefined,
+        }
+      : { status: "reading" },
   });
 
   const status = useWatch({ control: form.control, name: "status" });
@@ -107,8 +117,15 @@ export function BookForm({
     }
 
     toast.success(isEdit ? "Book updated." : `${values.title} added.`);
+
+    // Targeted invalidation instead of router.refresh(), which re-rendered the
+    // entire page tree on the server. Only what this write can have changed:
+    void queryClient.invalidateQueries({ queryKey: queryKeys.library });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.book(result.data.bookId) });
+    // A new edition may have joined the catalogue; drop cached searches.
+    void queryClient.invalidateQueries({ queryKey: ["catalogue"] });
+
     router.push(`/books/${result.data.bookId}`);
-    router.refresh();
   });
 
   return (

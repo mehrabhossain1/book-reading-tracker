@@ -1,21 +1,23 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RiBookmarkFill, RiCheckboxCircleFill, RiLoader4Line } from "react-icons/ri";
 
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { fetchJson } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query/keys";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import type { EditionSuggestion } from "@/modules/catalogue/queries";
+import { cn } from "@/lib/utils";
+import { libraryQuery } from "@/modules/books/query-options";
+import { normalizeTitle } from "@/modules/catalogue/normalize";
+import type { CatalogueMatch, EditionSuggestion } from "@/modules/catalogue/types";
 
 /** Wrap the typed run inside the title so the match is visible at a glance. */
 function Highlight({ text, query }: { text: string; query: string }) {
   const term = query.trim();
-  if (!term) return <>{text}</>;
-
-  const at = text.toLowerCase().indexOf(term.toLowerCase());
+  const at = term ? text.toLowerCase().indexOf(term.toLowerCase()) : -1;
   if (at === -1) return <>{text}</>;
-
   return (
     <>
       {text.slice(0, at)}
@@ -41,60 +43,43 @@ export function TitleCombobox({
   disabled?: boolean;
 }) {
   const listId = useId();
-  const inputId = "title";
-  /**
-   * Results are stored together with the query that produced them, so what is
-   * shown can be *derived* rather than cleared in an effect. That kills two
-   * problems at once: no synchronous setState cascade, and results from an
-   * earlier query can never linger under a newer one.
-   */
-  const [result, setResult] = useState<{ query: string; items: EditionSuggestion[] }>({
-    query: "",
-    items: [],
-  });
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  /** Set on pick so choosing a suggestion doesn't immediately re-search it. */
-  const skipNextSearch = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debounced = useDebouncedValue(value, 250);
-  const term = debounced.trim();
-  const searchable = term.length >= 2;
+  // Keyed on the *normalised* term, so "The Power" and "the power " share one
+  // cache entry — retyping or backspacing to an earlier query is instant.
+  const term = normalizeTitle(debounced);
+  const searchable = debounced.trim().length >= 2 && term.length > 0;
 
-  // Both derived — no state, so they can never disagree with the input.
-  const suggestions = searchable && result.query === term ? result.items : [];
-  const loading = searchable && result.query !== term;
+  // TanStack Query replaces the hand-rolled fetch/abort/race logic: it passes
+  // an AbortSignal (a superseded query is cancelled), dedupes identical
+  // in-flight requests, and caches every term for the session.
+  const search = useQuery<CatalogueMatch[]>({
+    queryKey: queryKeys.catalogue(term),
+    queryFn: ({ signal }) =>
+      fetchJson<{ suggestions: CatalogueMatch[] }>(
+        `/api/catalogue/search?q=${encodeURIComponent(debounced.trim())}`,
+        signal,
+      ).then((data) => data.suggestions),
+    enabled: searchable,
+    staleTime: 5 * 60_000,
+    // While the next term loads, keep showing the last results rather than
+    // collapsing the list and re-opening it on every pause.
+    placeholderData: keepPreviousData,
+  });
 
-  useEffect(() => {
-    if (!searchable) return;
-    if (skipNextSearch.current) {
-      skipNextSearch.current = false;
-      return;
-    }
+  // "On your shelf" is answered from the reader's shelf, which the client
+  // already holds — that's what lets the server cache search for everyone.
+  const shelf = useQuery(libraryQuery());
+  const onShelf = new Set(shelf.data?.books.map((book) => book.editionId).filter(Boolean));
 
-    // Abort in-flight requests so a slow early keystroke can't land after a
-    // later one and overwrite it.
-    const controller = new AbortController();
+  const suggestions: EditionSuggestion[] = searchable
+    ? (search.data ?? []).map((match) => ({ ...match, onShelf: onShelf.has(match.id) }))
+    : [];
+  const loading = searchable && search.isFetching;
 
-    fetch(`/api/catalogue/search?q=${encodeURIComponent(term)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : { suggestions: [] }))
-      .then((data: { suggestions: EditionSuggestion[] }) => {
-        setResult({ query: term, items: data.suggestions ?? [] });
-        setActive(-1);
-        setOpen(true);
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name === "AbortError") return;
-        setResult({ query: term, items: [] });
-      });
-
-    return () => controller.abort();
-  }, [term, searchable]);
-
-  // Close when focus or a click leaves the whole combobox.
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
@@ -104,7 +89,6 @@ export function TitleCombobox({
   }, []);
 
   const pick = (edition: EditionSuggestion) => {
-    skipNextSearch.current = true;
     onSelect(edition);
     setOpen(false);
     setActive(-1);
@@ -116,9 +100,13 @@ export function TitleCombobox({
     <div ref={containerRef} className="relative">
       <div className="relative">
         <Input
-          id={inputId}
+          id="title"
           autoFocus
           autoComplete="off"
+          // iOS: keep the keyboard's autocorrect from rewriting book titles.
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="next"
           role="combobox"
           aria-expanded={showList}
           aria-controls={listId}
@@ -129,9 +117,12 @@ export function TitleCombobox({
           value={value}
           onChange={(event) => {
             onChange(event.target.value);
+            setActive(-1);
             setOpen(true);
           }}
-          onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+          onFocus={() => {
+            if (suggestions.length > 0) setOpen(true);
+          }}
           onKeyDown={(event) => {
             if (!showList) return;
             if (event.key === "ArrowDown") {
@@ -141,8 +132,6 @@ export function TitleCombobox({
               event.preventDefault();
               setActive((index) => (index <= 0 ? suggestions.length - 1 : index - 1));
             } else if (event.key === "Enter" && active >= 0) {
-              // Only swallow Enter when a suggestion is highlighted, so the
-              // form can still be submitted normally.
               event.preventDefault();
               pick(suggestions[active]);
             } else if (event.key === "Escape") {
@@ -164,7 +153,14 @@ export function TitleCombobox({
             Already in the catalogue
           </p>
 
-          <ul id={listId} role="listbox" aria-label="Book suggestions" className="max-h-72 overflow-y-auto py-1">
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Book suggestions"
+            // overscroll-contain: on iOS, scrolling to the end of this list must
+            // not start scrolling the page underneath it.
+            className="max-h-72 overflow-y-auto overscroll-contain py-1"
+          >
             {suggestions.map((edition, index) => (
               <li key={edition.id}>
                 <button
@@ -175,19 +171,14 @@ export function TitleCombobox({
                   onMouseEnter={() => setActive(index)}
                   onClick={() => pick(edition)}
                   className={cn(
-                    "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                    "flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
                     index === active ? "bg-accent" : "bg-transparent",
                   )}
                 >
                   <span className="bg-muted text-muted-foreground ring-border/70 flex h-11 w-8 shrink-0 items-center justify-center overflow-hidden rounded ring-1">
                     {edition.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote host
-                      <img
-                        src={edition.coverUrl}
-                        alt=""
-                        referrerPolicy="no-referrer"
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={edition.coverUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                     ) : (
                       <RiBookmarkFill className="size-3.5" aria-hidden />
                     )}
@@ -215,9 +206,8 @@ export function TitleCombobox({
           </ul>
 
           <p className="text-muted-foreground border-border/70 border-t px-3 py-2 text-[0.6875rem]">
-            <kbd className="font-sans">↑</kbd> <kbd className="font-sans">↓</kbd> to
-            navigate · <kbd className="font-sans">↵</kbd> to use · keep typing to add a
-            new one
+            <kbd className="font-sans">↑</kbd> <kbd className="font-sans">↓</kbd> to navigate ·{" "}
+            <kbd className="font-sans">↵</kbd> to use · keep typing to add a new one
           </p>
         </div>
       )}

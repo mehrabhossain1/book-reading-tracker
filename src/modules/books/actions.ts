@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -16,10 +16,21 @@ import {
   updateBookSchema,
 } from "@/modules/books/schema";
 
-function revalidateBook(bookId?: string) {
-  revalidatePath("/library");
-  revalidatePath("/stats");
-  if (bookId) revalidatePath(`/books/${bookId}`);
+/**
+ * Library, detail and stats are kept fresh on the client by TanStack Query, so
+ * the hot paths (status changes, deletes) no longer revalidate server pages.
+ *
+ * Two things still need the server told:
+ *  - the shared catalogue search cache, whenever a write may have added an
+ *    edition. `expire: 0` rather than the "max" profile: stale-while-revalidate
+ *    would hide a just-added book from the very next person searching for it.
+ *    (The single-argument revalidateTag(tag) is deprecated in this Next.)
+ *  - the edit form, which renders server-side from the database. With the 30s
+ *    client router cache, revisiting it right after a save would otherwise show
+ *    the pre-save values.
+ */
+function revalidateCatalogue() {
+  revalidateTag("catalogue", { expire: 0 });
 }
 
 export const createBook = authedAction(createBookSchema, async (input, { user }) => {
@@ -52,7 +63,7 @@ export const createBook = authedAction(createBookSchema, async (input, { user })
     return row;
   });
 
-  revalidateBook(created.id);
+  revalidateCatalogue();
   return { bookId: created.id };
 });
 
@@ -110,7 +121,8 @@ export const updateBook = authedAction(updateBookSchema, async (input, { user })
     return row;
   });
 
-  revalidateBook(updated.id);
+  revalidateCatalogue();
+  revalidatePath(`/books/${updated.id}/edit`);
   return { bookId: updated.id };
 });
 
@@ -138,7 +150,6 @@ export const setBookStatus = authedAction(setBookStatusSchema, async (input, { u
     .where(and(eq(book.userId, user.id), eq(book.id, input.bookId)))
     .returning({ id: book.id });
 
-  revalidateBook(updated.id);
   return { bookId: updated.id };
 });
 
@@ -152,6 +163,5 @@ export const deleteBook = authedAction(deleteBookSchema, async (input, { user })
 
   if (deleted.length === 0) throw new ActionError("That book is no longer in your library.");
 
-  revalidateBook();
   return { bookId: input.bookId };
 });

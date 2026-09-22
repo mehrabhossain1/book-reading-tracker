@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -64,9 +63,9 @@ export const logProgress = authedAction(logProgressSchema, async (input, { user 
     return updated;
   });
 
-  revalidatePath("/library");
-  revalidatePath("/stats");
-  revalidatePath(`/books/${input.bookId}`);
-
+  // No revalidatePath: the client owns freshness for these views via TanStack
+  // Query (optimistic write, then invalidate). Revalidating here made the
+  // action re-render the whole page inside its own response — one of the two
+  // server renders behind the old ~1s delay.
   return result;
 });

@@ -9,8 +9,8 @@ const MIN_QUERY_LENGTH = 2;
  *
  * A route handler rather than a server action: search-as-you-type fires on
  * every keystroke, and a plain GET can be aborted by the browser when the query
- * moves on. Results are per-reader (they include `onShelf`), so this must never
- * be cached by a shared cache.
+ * moves on. Results are identical for every reader (the "on your shelf" flag is
+ * worked out on the client), which is what lets searchEditions cache them.
  */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -23,10 +23,12 @@ export async function GET(request: Request) {
     return Response.json({ suggestions: [] });
   }
 
-  const suggestions = await searchEditions(user.id, term);
+  const suggestions = await searchEditions(term);
 
+  // Results are no longer per-reader, so the browser may reuse them briefly.
+  // Still `private`: the catalogue sits behind sign-in.
   return Response.json(
     { suggestions },
-    { headers: { "Cache-Control": "private, no-store" } },
+    { headers: { "Cache-Control": "private, max-age=60" } },
   );
 }
