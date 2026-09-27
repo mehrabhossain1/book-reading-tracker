@@ -157,6 +157,23 @@ so results from an earlier query can never linger under a newer one.
 Run `pnpm db:backfill-catalogue` once after deploying to seed the catalogue from
 books that already exist.
 
+## Attaching your own copy
+
+A book can carry a link to the reader's actual copy — a PDF, an EPUB, a Drive
+file, a web reader. It shows as "Open file" on the book page and as a small icon
+in the library row, and opens in a new tab.
+
+- **It is private.** `file_url` lives on `book`, never on the shared
+  `book_edition`: these URLs are usually account-bound, and the catalogue is
+  visible to every other reader. Picking a catalogue suggestion fills the title,
+  author, page count and cover, and deliberately leaves the file link alone.
+- **http(s) only.** The value is rendered as an `href`, so `javascript:` and
+  `data:` are refused rather than sanitised. One rule (`optionalUrl` in
+  `modules/books/schema.ts`) covers both the file link and the cover URL, on the
+  server and in the form.
+- **One component.** `BookFileLink` renders it everywhere, as a plain `<a>` with
+  `rel="noopener noreferrer"`.
+
 ## Back office
 
 `/admin` is staff-only, linked in the sidebar for staff and hidden otherwise.

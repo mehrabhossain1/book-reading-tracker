@@ -22,6 +22,7 @@ function book(overrides: Partial<BookDTO> = {}): BookDTO {
     title: "Middlemarch",
     author: "George Eliot",
     coverUrl: null,
+    fileUrl: null,
     totalPages: 900,
     status: "reading",
     currentPage: 100,

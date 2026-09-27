@@ -23,6 +23,7 @@ export default async function EditBookPage({ params }: PageProps<"/books/[bookId
             title: book.title,
             author: book.author,
             coverUrl: book.coverUrl,
+            fileUrl: book.fileUrl,
             totalPages: book.totalPages,
             status: book.status,
           }}

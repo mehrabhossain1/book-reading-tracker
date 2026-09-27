@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatDate, plural } from "@/lib/format";
 import { BookActionsMenu } from "@/modules/books/components/book-actions-menu";
 import { BookCover } from "@/modules/books/components/book-cover";
+import { BookFileLink } from "@/modules/books/components/book-file-link";
 import { pagesRemaining, progressPercent } from "@/modules/books/progress";
 import { bookQuery } from "@/modules/books/query-options";
 import { statusLabel } from "@/modules/books/status";
@@ -107,15 +108,22 @@ export function BookDetailView({ bookId }: { bookId: string }) {
           {!finished && ` · ${plural(remaining, "page")} left`}
         </p>
 
-        {!finished && (
-          <LogProgressDialog
-            book={book}
-            trigger={
-              <Button size="lg" className="mt-4 w-full sm:w-auto">
-                Update your progress
-              </Button>
-            }
-          />
+        {(!finished || book.fileUrl) && (
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            {!finished && (
+              <LogProgressDialog
+                book={book}
+                trigger={
+                  <Button size="lg" className="w-full sm:w-auto">
+                    Update your progress
+                  </Button>
+                }
+              />
+            )}
+            {book.fileUrl && (
+              <BookFileLink url={book.fileUrl} className="w-full sm:w-auto" />
+            )}
+          </div>
         )}
       </div>
 

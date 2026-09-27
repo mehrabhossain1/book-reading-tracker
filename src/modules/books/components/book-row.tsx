@@ -12,6 +12,7 @@ import { plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { BookActionsMenu } from "@/modules/books/components/book-actions-menu";
 import { BookCover } from "@/modules/books/components/book-cover";
+import { BookFileLink } from "@/modules/books/components/book-file-link";
 import type { BookDTO } from "@/modules/books/dto";
 import { isStale, pagesRemaining, progressPercent } from "@/modules/books/progress";
 import { LogProgressDialog } from "@/modules/progress/components/log-progress-dialog";
@@ -108,16 +109,19 @@ export function BookRow({ book }: { book: BookDTO }) {
             <RelativeTime iso={book.lastReadAt} prefix="Read " fallback="Not started yet" />
           </span>
 
-          {!finished && (
-            <div className="relative z-10">
-              <LogProgressDialog
-                book={book}
-                trigger={
-                  <Button variant="outline" size="sm">
-                    Log progress
-                  </Button>
-                }
-              />
+          {(book.fileUrl || !finished) && (
+            <div className="relative z-10 flex items-center gap-1.5">
+              {book.fileUrl && <BookFileLink url={book.fileUrl} variant="icon" />}
+              {!finished && (
+                <LogProgressDialog
+                  book={book}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      Log progress
+                    </Button>
+                  }
+                />
+              )}
             </div>
           )}
         </div>

@@ -16,6 +16,8 @@ export type BookDTO = {
   title: string;
   author: string | null;
   coverUrl: string | null;
+  /** Link to the reader's own copy, if they attached one. http(s) only. */
+  fileUrl: string | null;
   totalPages: number;
   status: BookStatus;
   currentPage: number;
@@ -56,6 +58,7 @@ export function toBookDTO(book: Book): BookDTO {
     title: book.title,
     author: book.author,
     coverUrl: book.coverUrl,
+    fileUrl: book.fileUrl,
     totalPages: book.totalPages,
     status: book.status,
     currentPage: book.currentPage,

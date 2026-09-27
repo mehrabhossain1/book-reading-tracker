@@ -22,9 +22,17 @@ import {
 import { BOOK_STATUSES, type BookStatus } from "@/db/schema";
 import { queryKeys } from "@/lib/query/keys";
 import { createBook, updateBook } from "@/modules/books/actions";
+import { isHttpUrl, MAX_URL_LENGTH, URL_ERROR } from "@/modules/books/schema";
 import { BOOK_STATUS_META, STATUS_ORDER } from "@/modules/books/status";
 import { TitleCombobox } from "@/modules/catalogue/components/title-combobox";
 import type { EditionSuggestion } from "@/modules/catalogue/types";
+
+/** Same rule as the server's, imported rather than restated. */
+const formUrl = z
+  .string()
+  .trim()
+  .max(MAX_URL_LENGTH)
+  .refine((value) => !value || isHttpUrl(value), URL_ERROR);
 
 /** Form-side twin of createBookSchema — real numbers, no coercion. */
 const bookFormSchema = z.object({
@@ -35,11 +43,8 @@ const bookFormSchema = z.object({
     .int("Use a whole number.")
     .min(1, "A book has at least one page.")
     .max(50_000, "That seems too long — check the number."),
-  coverUrl: z
-    .string()
-    .trim()
-    .max(2048)
-    .refine((v) => !v || /^https?:\/\//i.test(v), "Must start with http:// or https://"),
+  coverUrl: formUrl,
+  fileUrl: formUrl,
   status: z.enum(BOOK_STATUSES),
   /** Present when the title came from the shared catalogue. */
   editionId: z.string().optional(),
@@ -55,6 +60,7 @@ export function BookForm({
     title: string;
     author: string | null;
     coverUrl: string | null;
+    fileUrl: string | null;
     totalPages: number;
     status: BookStatus;
   };
@@ -76,6 +82,7 @@ export function BookForm({
           author: book.author ?? "",
           totalPages: book.totalPages,
           coverUrl: book.coverUrl ?? "",
+          fileUrl: book.fileUrl ?? "",
           status: book.status,
           editionId: undefined,
         }
@@ -92,6 +99,8 @@ export function BookForm({
     form.setValue("author", edition.author ?? "");
     form.setValue("totalPages", edition.totalPages, { shouldValidate: true });
     form.setValue("coverUrl", edition.coverUrl ?? "");
+    // fileUrl is intentionally left alone: it is this reader's own copy, not
+    // part of the shared catalogue entry.
     form.setValue("editionId", edition.id);
     setLinked(edition);
   };
@@ -211,6 +220,23 @@ export function BookForm({
             {...form.register("coverUrl")}
           />
           <FieldError errors={[form.formState.errors.coverUrl]} />
+        </Field>
+
+        <Field data-invalid={Boolean(form.formState.errors.fileUrl)}>
+          <FieldLabel htmlFor="fileUrl">Book file link</FieldLabel>
+          <Input
+            id="fileUrl"
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            aria-invalid={Boolean(form.formState.errors.fileUrl)}
+            {...form.register("fileUrl")}
+          />
+          <FieldDescription>
+            A link to your own copy — a PDF, an EPUB, a Drive file or a web reader. It
+            opens in a new tab from your library, and only you can see it.
+          </FieldDescription>
+          <FieldError errors={[form.formState.errors.fileUrl]} />
         </Field>
 
         <Field>

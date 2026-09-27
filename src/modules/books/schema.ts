@@ -11,6 +11,27 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => (value ? value : null));
 
+/**
+ * The one URL rule, exported because book-form.tsx validates the same fields
+ * client-side and two copies of a security check is one copy too many.
+ *
+ * Restricting to http(s) is not cosmetic: every one of these values ends up in
+ * an `href`, and `javascript:`/`data:` there is script injection. We refuse
+ * rather than sanitise — a rejected URL is a message the reader can act on.
+ */
+export const MAX_URL_LENGTH = 2048;
+export const URL_ERROR = "Must start with http:// or https://";
+export const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
+
+const optionalUrl = () =>
+  z
+    .string()
+    .trim()
+    .max(MAX_URL_LENGTH)
+    .optional()
+    .refine((value) => !value || isHttpUrl(value), URL_ERROR)
+    .transform((value) => (value ? value : null));
+
 export const bookStatusSchema = z.enum(BOOK_STATUSES);
 
 export const createBookSchema = z.object({
@@ -23,13 +44,9 @@ export const createBookSchema = z.object({
     .int("Use a whole number.")
     .min(1, "A book has at least one page.")
     .max(50_000, "That seems too long — check the number."),
-  coverUrl: z
-    .string()
-    .trim()
-    .max(2048)
-    .optional()
-    .refine((value) => !value || /^https?:\/\//i.test(value), "Must start with http:// or https://")
-    .transform((value) => (value ? value : null)),
+  coverUrl: optionalUrl(),
+  /** The reader's own copy: a PDF, an EPUB, a Drive file, a web reader. */
+  fileUrl: optionalUrl(),
   status: bookStatusSchema.default("reading"),
 });
 

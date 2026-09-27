@@ -108,6 +108,15 @@ export const book = pgTable(
     coverUrl: text("cover_url"),
     totalPages: integer("total_pages").notNull(),
 
+    /**
+     * Optional link to the reader's own copy — a PDF, an EPUB, a Drive file, a
+     * web reader. Deliberately on `book` and NOT on `bookEdition`: these URLs
+     * are usually private or account-bound (a personal Drive share, a library
+     * loan), and the catalogue is visible to every other reader. A shared
+     * cover URL is public by nature; a shared file link would leak.
+     */
+    fileUrl: text("file_url"),
+
     status: bookStatusEnum("status").notNull().default("reading"),
     currentPage: integer("current_page").notNull().default(0),
 

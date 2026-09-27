@@ -1,0 +1,1 @@
+ALTER TABLE "book" ADD COLUMN "file_url" text;

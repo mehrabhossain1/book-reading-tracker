@@ -54,6 +54,9 @@ export const createBook = authedAction(createBookSchema, async (input, { user })
         title: input.title,
         author: input.author,
         coverUrl: input.coverUrl,
+        // Stays on this shelf row: findOrCreateEdition above is never given the
+        // file link, so a private URL cannot reach the shared catalogue.
+        fileUrl: input.fileUrl,
         totalPages: input.totalPages,
         status: input.status,
         startedAt: input.status === "reading" ? new Date() : null,
@@ -111,6 +114,7 @@ export const updateBook = authedAction(updateBookSchema, async (input, { user })
         title: input.title,
         author: input.author,
         coverUrl: input.coverUrl,
+        fileUrl: input.fileUrl,
         totalPages: input.totalPages,
         status: input.status,
         currentPage: clampPage(existing.currentPage, input.totalPages),

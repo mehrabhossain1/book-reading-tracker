@@ -748,3 +748,57 @@ cancelled"). Console-only; not fixable from app code without hiding real errors.
 - Better Auth's 5-minute session cookie cache means a ban takes up to 5 minutes
   to lock out a signed-in session.
 
+
+## 16. Attaching your own copy — book file links
+
+**Goal:** a book on the shelf can carry a link to the reader's actual copy — a
+PDF, an EPUB, a Drive file, a web reader — so "pick this book up again" is one
+tap from the library instead of a hunt through a file manager.
+
+### Where the column lives, and why it is not in the catalogue
+
+`file_url` is on `book`, not on `book_edition`. The catalogue is shared with
+every other reader, and these URLs are usually private or account-bound: a
+personal Drive share, a library loan, a signed download. A cover URL is public
+by nature; a file link is not. So `findOrCreateEdition` is never handed one, and
+picking a catalogue suggestion in the add form fills title, author, page count
+and cover but deliberately leaves the file link alone.
+
+Nullable, no constraint beyond the schema's: a book without a copy attached is
+the normal case, and the UI shows nothing at all for it.
+
+### http(s) only, in one place
+
+The value ends up in an `href`, so `javascript:` or `data:` there is script
+injection. `optionalUrl()` in `modules/books/schema.ts` refuses anything that is
+not http(s) — refuses, rather than sanitising, so the reader gets a message they
+can act on. `coverUrl` now shares that rule instead of restating it, and the
+form-side twin imports `isHttpUrl`/`URL_ERROR` from the same file: a security
+check with two copies has one copy too many. `schema.test.ts` pins it.
+
+### One component, two sizes
+
+`BookFileLink` is the only thing that renders an attached file anywhere: a
+labelled "Open file" button on the book page, a square icon in the tight library
+row. A plain `<a>`, not `next/link` — the target is someone else's host and the
+router has nothing to do with it — with `target="_blank"` and
+`rel="noopener noreferrer"`, so the opened tab can't reach back through
+`window.opener` and the reader's shelf URL stays out of that host's logs.
+
+### Verified end to end
+
+13 checks in Chromium and in WebKit 26.6 at iPhone size: a `javascript:` URL is
+refused before anything saves · a real link round-trips to the book page, the
+library row and back into the edit form · the button opens in a new tab with
+`noopener noreferrer` · the row's full-card overlay link does not swallow the tap
+(`elementFromPoint` lands on the file link, not the card) · editing replaces the
+link · clearing the field removes the button everywhere · a book without a link
+renders exactly as before. Then every probe account, book and catalogue entry was
+deleted.
+
+One thing the probe exposed, pre-existing and unrelated: typing into the *edit*
+form during its first frames, before React hydrates, loses the keystrokes in
+WebKit — Hook Form writes the saved value back over them. v2 §15 fixed this for
+empty defaults on the add and sign-up forms; the edit form's defaults are real
+values, so the same race is still there for anyone who types within ~100ms of the
+page appearing.

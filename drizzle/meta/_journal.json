@@ -29,6 +29,13 @@
       "when": 1787595179022,
       "tag": "0003_book_edition_usage_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790486712645,
+      "tag": "0004_damp_violations",
+      "breakpoints": true
     }
   ]
 }
