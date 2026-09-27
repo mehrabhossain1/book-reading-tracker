@@ -16,6 +16,37 @@ references.
 | Client data | TanStack Query 5 — SSR prefetch + hydration, optimistic mutations |
 | Tests | Vitest (domain math) |
 
+## Browser support
+
+The floor is **Safari 15.6 / iOS 15.8** — an iPhone 7 Plus, the oldest device
+this is actually used on. Next.js 16 targets Safari 16.4 by default, which is
+newer than that phone can ever run, so `package.json` carries an explicit
+`browserslist`:
+
+```json
+"browserslist": ["chrome 111", "edge 111", "firefox 111", "safari 15.6", "ios_saf 15.6"]
+```
+
+Two separate things can break an older browser, and that setting only fixes the
+first:
+
+- **Syntax it cannot parse.** One class static block in a chunk is a
+  `SyntaxError`, the chunk never runs, and *nothing* on the page is interactive
+  — with no error visible to the person holding the phone. Lowering the target
+  makes the compiler rewrite it.
+- **Methods it does not have.** Down-levelling never adds those.
+  `src/instrumentation-client.ts` polyfills them; today that is
+  `Array.prototype.toSorted` (Safari 16.4), which every Radix dropdown, select
+  and tab list calls.
+
+`pnpm check:legacy-safari` scans the built chunks for both and fails if
+something new creeps in. Run it after `pnpm build`.
+
+What that phone still does not get, all cosmetic: `color-mix()` (Safari 16.2),
+so `/30`-style opacity variants fall back to the solid colour — Tailwind emits
+the fallback and an `@supports` guard automatically; `@property` (16.4), which
+only affects animated custom properties; and two `@container` rules (16.0).
+
 ## Getting started
 
 ```bash

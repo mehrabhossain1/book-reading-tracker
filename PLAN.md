@@ -883,3 +883,67 @@ One React Hook Form trap, found by a failing check rather than by reading:
 `reset(values)` updates the library's own state but leaves the DOM alone — only
 `reset()` with no argument triggers the native form reset. The three passwords
 stayed on screen after a successful change until that was fixed.
+
+## 18. The iPhone 7 Plus
+
+**Reported:** "the hamburger menu is not working in my iphone 7 plus safari
+browser", then "after giving the email and password the login is not working".
+
+The second message was the diagnosis. Two unrelated controls failing in the same
+way is not two bugs — it is no JavaScript running at all.
+
+### What was actually wrong
+
+Next.js 16 targets **Safari 16.4+** with zero configuration. An iPhone 7 Plus is
+an A10 and stops at **iOS 15.8**. Two chunks of the production bundle contained
+class static initialisation blocks — ES2022, Safari 16.4:
+
+```js
+class y extends a.default.Component{static{this.contextType=d.AppRouterContext}…
+```
+
+On that phone each is a `SyntaxError`. The chunk never executes, React never
+hydrates, and the server-rendered HTML sits there looking perfectly fine while
+nothing responds. One of the two was Next's own App Router chunk, which is on
+every page — so every button in the app was dead, not only the hamburger.
+
+### The fix, in two parts
+
+1. **`browserslist` in package.json**, lowering only Safari to 15.6 / iOS 15.6.
+   The compiler rewrote the static blocks into static private fields (Safari 15,
+   fine). Cost: 13 KB across the whole client bundle, 1.61 MB → 1.62 MB, +0.8%.
+
+2. **`src/instrumentation-client.ts`**, because down-levelling rewrites syntax
+   and cannot conjure up missing *methods*. The bundle calls
+   `Array.prototype.toSorted` (Safari 16.4) from Radix's collection — the code
+   behind every dropdown, select and tab list. Without a polyfill the menus
+   would have thrown the moment they opened, on the same phone, for a completely
+   different reason.
+
+`pnpm check:legacy-safari` now scans the built chunks for both classes of
+problem and fails on anything new. It distinguishes a static *block* (fatal)
+from a static *private field* (fine on 15.6), which is the distinction that
+matters.
+
+### Verified
+
+10 checks in Chromium and in WebKit 26.6 at iPhone 7 Plus size with touch, run
+with `Array.prototype.toSorted` deleted before any app script — the one respect
+in which a modern engine can be made to imitate that phone: the polyfill
+installs, the hamburger opens and closes, sign-up and email sign-in both reach
+the library, a Select opens, a book saves, a dropdown menu opens, the library
+filter switches, and no page errors. The same probe with builtins left alone
+passes identically, so nothing regressed for everyone else.
+
+The syntax half cannot be run here — no Safari 15 to run it on. What is proven
+is that the syntax it chokes on is gone from all 32 chunks, by pattern and by
+parse.
+
+### Still not supported on that phone, all cosmetic
+
+`color-mix()` is Safari 16.2, so `/30`-style opacity variants fall back to the
+solid colour — Tailwind already emits both the fallback and an `@supports`
+guard, so nothing disappears. `@property` (16.4) is ignored, which only affects
+animated custom properties. Two `@container` rules (16.0) do nothing. Tailwind
+v4's own stated floor is Safari 16.4; matching it exactly would mean leaving
+Tailwind v4, which is not worth it for these three.
