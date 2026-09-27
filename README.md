@@ -182,7 +182,7 @@ in the library row, and opens in a new tab.
 |---|---|
 | `user` | Nothing administrative |
 | `admin` | View metrics and accounts, ban/unban, revoke sessions, impersonate a **member** |
-| `superadmin` | All of the above, plus change roles, delete accounts, and act on other admins |
+| `superadmin` | All of the above, plus change roles, set passwords, delete accounts, and act on other admins |
 
 The first super admin has to be created from the command line — the back office
 is staff-only, so there is no way to bootstrap one from inside it:
@@ -195,11 +195,49 @@ Everything after that can be done from `/admin`.
 
 **Two rules enforced in `modules/admin/actions.ts`, not just hidden in the UI:**
 
-- Only a super admin may change roles or delete an account.
+- Only a super admin may change roles, set someone's password, or delete an
+  account. Setting a password is *narrower* than Better Auth's own default,
+  which grants `user: ["set-password"]` to the built-in admin role: it is a
+  permanent account takeover, unlike impersonation, which is time-boxed and
+  recorded.
 - Staff may not ban, unban or revoke sessions of other staff — only a super
   admin may. Better Auth gates *impersonating* an admin behind its own
   permission but has no equivalent for banning, so without this a plain admin
   could ban the owner and lock them out.
+
+## Passwords
+
+| Who | Where | Needs |
+|---|---|---|
+| Anyone | `/settings` → Password | Their current password |
+| Anyone who signed up with Google | `/settings` → Password | Nothing — the live session is the proof, and they gain email sign-in |
+| Super admin, for any account | `/admin` → ⋯ → Set password… | Nothing; **Generate** makes a strong one |
+| Whoever holds the server | `pnpm admin:set-password <email>` | Shell access |
+
+```bash
+pnpm admin:set-password you@example.com              # asks twice, hidden
+pnpm admin:set-password you@example.com --generate   # prints a strong one
+pnpm admin:set-password you@example.com --keep-sessions
+```
+
+The CLI exists for the one person the in-app reset can't help: a locked-out
+super admin, who has no session to reset from. It hashes through Better Auth's
+own context, so a password it writes verifies at sign-in like any other, and it
+adds email sign-in to a Google-only account if there was no password before.
+
+Every reset signs the account out everywhere by default — a reset that leaves
+old sessions alive locks nobody out. Changing your own password keeps *this*
+device signed in and drops the others.
+
+There is no "forgot password" email: this deployment has no mail transport.
+Wire one up and Better Auth's `requestPasswordReset` becomes the fourth row in
+that table.
+
+Revocation is not instant. A session is read from its signed cookie for
+`session.cookieCache.maxAge` (60 seconds, in `lib/auth.ts`) before the database
+is consulted again, so a revoked device can keep working for up to a minute.
+Lower it to 0 to make bans and resets immediate, at one session lookup per
+request.
 
 Impersonation is deliberately conspicuous: the session records `impersonatedBy`,
 sessions last 30 minutes, and a red banner sits above the app until you stop.

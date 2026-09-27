@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "admin:promote": "tsx --env-file=.env.local src/db/promote.ts",
+    "admin:set-password": "tsx --env-file=.env.local src/db/set-password.ts",
     "db:backfill-catalogue": "tsx --env-file=.env.local src/db/backfill-catalogue.ts"
   },
   "dependencies": {

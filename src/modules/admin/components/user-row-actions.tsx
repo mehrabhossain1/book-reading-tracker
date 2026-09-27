@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   RiDeleteBin6Fill,
+  RiKey2Fill,
   RiLogoutBoxRFill,
   RiMore2Fill,
+  RiRefreshLine,
   RiShieldUserFill,
   RiSpyFill,
   RiUserForbidFill,
   RiUserFollowFill,
 } from "react-icons/ri";
 
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,11 +35,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { generatePassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 import type { ActionResult } from "@/lib/safe-action";
-import { banUser, removeUser, revokeUserSessions, setUserRole, unbanUser } from "@/modules/admin/actions";
+import {
+  banUser,
+  removeUser,
+  revokeUserSessions,
+  setUserPassword,
+  setUserRole,
+  unbanUser,
+} from "@/modules/admin/actions";
 import { APP_ROLES, ROLE_LABELS, toRole, type AppRole } from "@/modules/admin/permissions";
 
 export function UserRowActions({
@@ -57,6 +68,9 @@ export function UserRowActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [banOpen, setBanOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [signOutEverywhere, setSignOutEverywhere] = useState(true);
   const [reason, setReason] = useState("");
   const [days, setDays] = useState("");
   const [permanent, setPermanent] = useState(true);
@@ -169,6 +183,16 @@ export function UserRowActions({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onSelect={() => {
+                  setPassword("");
+                  setSignOutEverywhere(!isSelf);
+                  setPasswordOpen(true);
+                }}
+              >
+                <RiKey2Fill className="size-4" />
+                Set password…
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 variant="destructive"
                 disabled={isSelf}
                 onSelect={() => {
@@ -189,6 +213,80 @@ export function UserRowActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-left">
+              {isSelf ? "Set your password" : `Set a password for ${name}`}
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {isSelf
+                ? "This replaces your current password. You stay signed in here."
+                : `This replaces whatever ${name} had. Tell them the new password — nobody can read it back afterwards.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4">
+            <Field>
+              <FieldLabel htmlFor="new-password">New password</FieldLabel>
+              <div className="flex gap-2">
+                <PasswordInput
+                  id="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="new-password"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setPassword(generatePassword())}
+                  className="shrink-0 gap-1.5"
+                >
+                  <RiRefreshLine className="size-4" />
+                  Generate
+                </Button>
+              </div>
+              <FieldDescription>
+                At least {MIN_PASSWORD_LENGTH} characters. Use the eye to check it before
+                you send it on.
+              </FieldDescription>
+            </Field>
+
+            {!isSelf && (
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="password-sign-out"
+                  checked={signOutEverywhere}
+                  onCheckedChange={(checked) => setSignOutEverywhere(checked === true)}
+                />
+                <FieldLabel htmlFor="password-sign-out" className="font-normal">
+                  Sign them out everywhere
+                </FieldLabel>
+              </Field>
+            )}
+
+            <Button
+              size="lg"
+              disabled={isPending || password.length < MIN_PASSWORD_LENGTH}
+              onClick={() =>
+                run(
+                  () => setUserPassword({ userId, newPassword: password, signOutEverywhere }),
+                  isSelf ? "Your password is set." : `New password set for ${name}.`,
+                  () => {
+                    setPasswordOpen(false);
+                    setPassword("");
+                  },
+                )
+              }
+            >
+              {isPending ? "Saving…" : "Set password"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={banOpen} onOpenChange={setBanOpen}>
         <DialogContent className="sm:max-w-md">

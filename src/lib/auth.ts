@@ -54,7 +54,12 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // refresh the row at most once a day
-    cookieCache: { enabled: true, maxAge: 5 * 60 },
+    // Sessions are read from the signed cookie for this long before the
+    // database is consulted again. It is the window in which a *revoked*
+    // session still works — a ban, a "sign out my other devices", an admin
+    // password reset. Five minutes made that promise visibly untrue for
+    // minutes; one minute costs one indexed lookup per active user per minute.
+    cookieCache: { enabled: true, maxAge: 60 },
   },
   plugins: [
     adminPlugin({

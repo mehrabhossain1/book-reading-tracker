@@ -802,3 +802,84 @@ WebKit — Hook Form writes the saved value back over them. v2 §15 fixed this f
 empty defaults on the add and sign-up forms; the edit form's defaults are real
 values, so the same race is still there for anyone who types within ~100ms of the
 page appearing.
+
+## 17. Password reset
+
+**Goal:** a way back in — for a reader who forgot their password, for the super
+admin resetting someone else's, and for the super admin who is locked out of
+their own platform.
+
+### Four paths, deliberately different
+
+| Who | Where | Proof of identity |
+|---|---|---|
+| Anyone with a password | `/settings` | The current password |
+| Anyone without one (Google sign-up) | `/settings` | The live session |
+| Super admin, for any account | `/admin` → ⋯ → Set password… | Their own role |
+| Whoever holds the server | `pnpm admin:set-password` | Shell access |
+
+The CLI is the bootstrap, and exists for the same reason `admin:promote` does:
+the in-app reset needs a signed-in session, and the one person a one-person
+platform can lock out is its owner.
+
+There is no email reset link. This deployment has no mail transport — the same
+reason `requireEmailVerification` is off — and inventing one would mean inventing
+a token store, an expiry policy and a sender. `requestPasswordReset` is already
+in Better Auth; it becomes a fifth row the day mail exists.
+
+### Narrower than the library's default, on purpose
+
+Better Auth's built-in `admin` role carries `user: ["set-password"]`. Our action
+refuses anything below `superadmin`. Setting a password is a *permanent* account
+takeover: unlike impersonation — time-boxed at 30 minutes, recorded in
+`impersonatedBy`, banner on screen — it leaves no trace in the session and locks
+the real owner out until someone tells them the new password. Proven by calling
+the server action directly, with a plain admin's own cookie and the action ID
+lifted from the build manifest: `Only a super admin can set someone's password`,
+and the target's password unchanged. The menu item being hidden is the UI's
+opinion; that check is the rule.
+
+### Nothing hashes a password except Better Auth
+
+Every path ends in Better Auth's own hasher, never a hand-rolled one — the
+settings forms through `changePassword`/`setPassword`, the back office through
+`admin.setUserPassword`, the CLI through `auth.$context.password.hash` plus
+`internalAdapter`. A password written any other way simply would not verify at
+sign-in, and the failure would look like "wrong password" forever.
+
+The CLI mirrors one constant it cannot import: `createLocalAccountIssuer(
+"credential")` → `local:credential`, for the case where an account has no
+credential row yet. `@better-auth/core` is a transitive dependency, so pnpm's
+strict layout puts it out of reach. Verified against a real row afterwards.
+
+### The cookie cache made "sign out my other devices" untrue
+
+The first run of the probe caught it: the second device carried on working after
+the password changed. The sessions *were* deleted — the database showed one row
+left, the caller's — but `session.cookieCache` let each request trust the signed
+cookie for five minutes before asking the database again. Every revocation in the
+app had this window: bans (recorded in v2 §13 as a five-minute delay), "revoke
+sessions", and now resets.
+
+Lowered to 60 seconds. The cost is one indexed session lookup per active user per
+minute; the benefit is that the checkbox means roughly what it says. Zero would
+make it exact, at one lookup per request.
+
+### Verified end to end
+
+13 checks in Chromium and in WebKit 26.6, plus 12 in the back office: a wrong
+current password is refused · the right one changes it, clears the form and
+signs the other device out (database checked first, then the device itself once
+its cached cookie expired) · an account with no password is asked to set one
+rather than recall one, and gains email sign-in · **Generate** produces 20
+masked characters the eye reveals · the target's sessions are revoked, their old
+password stops working and the new one signs them in · resetting your own keeps
+you signed in and offers no "sign out everywhere" · a plain admin is offered no
+such menu item and the action refuses them anyway · the CLI sets a password that
+signs in over HTTP, including on an account whose credential row it had to
+create. Then every probe account was deleted.
+
+One React Hook Form trap, found by a failing check rather than by reading:
+`reset(values)` updates the library's own state but leaves the DOM alone — only
+`reset()` with no argument triggers the native form reset. The three passwords
+stayed on screen after a successful change until that was fixed.

@@ -10,7 +10,12 @@ import { user as userTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { ActionError, authedAction } from "@/lib/safe-action";
 import { isStaff, isSuperAdmin } from "@/modules/admin/permissions";
-import { banUserSchema, setUserRoleSchema, userIdSchema } from "@/modules/admin/schema";
+import {
+  banUserSchema,
+  setUserPasswordSchema,
+  setUserRoleSchema,
+  userIdSchema,
+} from "@/modules/admin/schema";
 
 /**
  * Every mutation here goes through Better Auth's own admin API rather than
@@ -119,6 +124,43 @@ export const revokeUserSessions = authedAction(userIdSchema, async (input, { use
 
   revalidateAdmin();
   return { userId: input.userId };
+});
+
+/**
+ * Set any account's password — the reset path for a reader who is locked out,
+ * and for the super admin's own account.
+ *
+ * Super admin only, deliberately. Better Auth's built-in `admin` role carries
+ * `user: ["set-password"]`, so this is *narrower* than the library default:
+ * setting a password is a permanent account takeover — unlike impersonation,
+ * which is time-boxed and recorded — and it locks the real owner out until
+ * someone tells them the new password. That belongs to the top tier alone.
+ *
+ * It works for a Google-only account too: Better Auth creates the credential
+ * account if there isn't one, so the reader gains email sign-in.
+ */
+export const setUserPassword = authedAction(setUserPasswordSchema, async (input, { user }) => {
+  if (!isSuperAdmin(user.role)) {
+    throw new ActionError("Only a super admin can set someone's password.");
+  }
+
+  await auth.api.setUserPassword({
+    body: { userId: input.userId, newPassword: input.newPassword },
+    headers: await headers(),
+  });
+
+  // Revoking the target's sessions would include the caller's own if they are
+  // resetting their own password — which would sign them out mid-action.
+  const isSelf = input.userId === user.id;
+  if (input.signOutEverywhere && !isSelf) {
+    await auth.api.revokeUserSessions({
+      body: { userId: input.userId },
+      headers: await headers(),
+    });
+  }
+
+  revalidateAdmin();
+  return { userId: input.userId, signedOutEverywhere: input.signOutEverywhere && !isSelf };
 });
 
 export const removeUser = authedAction(userIdSchema, async (input, { user }) => {
